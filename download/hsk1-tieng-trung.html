@@ -933,11 +933,11 @@ function Matching(props) {
           return html`
             <button key=${cell.id} onClick=${function() { handleClick(cell); }} disabled=${isMatched} className=${"relative rounded-2xl p-4 md:p-5 min-h-[100px] md:min-h-[120px] flex flex-col items-center justify-center gap-1 transition-all border-2 " + cls}>
               ${cell.side === "han" ? html`
-                <>
+                <div>
                   <div className="text-3xl">${cell.emoji}</div>
                   <div className="text-2xl md:text-3xl font-bold">${cell.text}</div>
                   ${!isMatched ? html`<div className=${"text-xs italic " + (isSelected ? "text-white/80" : "text-gray-500")}>${cell.pinyin}</div>` : null}
-                </>
+                </div>
               ` : html`<div className="text-base md:text-lg font-semibold text-center">${cell.text}</div>`}
               ${isMatched ? html`<span className="absolute top-2 right-2 text-emerald-600">✓</span>` : null}
             </button>`;
