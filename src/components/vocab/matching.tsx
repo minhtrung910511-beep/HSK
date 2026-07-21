@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Trophy, RotateCcw, Check, Heart, Timer } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -42,6 +42,7 @@ export function Matching({ pairCount = DEFAULT_PAIR_COUNT, onComplete }: Matchin
   const [wrongPair, setWrongPair] = useState<[string, string] | null>(null);
   const [lives, setLives] = useState(MAX_LIVES);
   const [seconds, setSeconds] = useState(0);
+  const completedRef = useRef(false);
 
   const start = useCallback(() => {
     const pool = shuffle(VOCAB).slice(0, pairCount);
@@ -65,6 +66,7 @@ export function Matching({ pairCount = DEFAULT_PAIR_COUNT, onComplete }: Matchin
     setLives(MAX_LIVES);
     setSeconds(0);
     setPhase("playing");
+    completedRef.current = false;
   }, [pairCount]);
 
   // Timer
@@ -74,21 +76,31 @@ export function Matching({ pairCount = DEFAULT_PAIR_COUNT, onComplete }: Matchin
     return () => clearInterval(t);
   }, [phase]);
 
-  // Win check
+  // Win check - chỉ set phase, onComplete được gọi ở effect riêng
   useEffect(() => {
     if (phase !== "playing") return;
     if (cells.length > 0 && matched.size === cells.length) {
       setPhase("won");
-      const score = Math.max(0, 1000 - seconds * 5 + lives * 100);
-      onComplete?.(score);
     }
-  }, [matched, cells.length, phase, seconds, lives, onComplete]);
+  }, [matched, cells.length, phase]);
 
   // Lose check
   useEffect(() => {
     if (phase !== "playing") return;
     if (lives <= 0) setPhase("lost");
   }, [lives, phase]);
+
+  // Gọi onComplete 1 lần duy nhất khi vào phase won (tránh crash do parent setState)
+  useEffect(() => {
+    if (phase === "won" && !completedRef.current) {
+      completedRef.current = true;
+      const score = Math.max(0, 1000 - seconds * 5 + lives * 100);
+      onComplete?.(score);
+    }
+    if (phase !== "won") {
+      completedRef.current = false;
+    }
+  }, [phase, seconds, lives, onComplete]);
 
   const handleClick = (cell: Cell) => {
     if (matched.has(cell.id)) return;

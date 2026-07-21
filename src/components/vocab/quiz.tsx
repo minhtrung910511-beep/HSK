@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Check, X, Clock, Trophy, RotateCcw, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -55,6 +55,7 @@ export function Quiz({ questionCount = QUESTION_COUNT, onQuizComplete }: QuizPro
   const [timeLeft, setTimeLeft] = useState(TIME_LIMIT);
   const [phase, setPhase] = useState<"intro" | "playing" | "result">("intro");
   const [answeredCount, setAnsweredCount] = useState(0);
+  const completedRef = useRef(false);
 
   const generateQuiz = useCallback(() => {
     const pool = shuffle(VOCAB).slice(0, questionCount);
@@ -83,6 +84,7 @@ export function Quiz({ questionCount = QUESTION_COUNT, onQuizComplete }: QuizPro
     setScore(0);
     setAnsweredCount(0);
     setTimeLeft(TIME_LIMIT);
+    completedRef.current = false;
   }, [questionCount]);
 
   const start = () => {
@@ -113,16 +115,25 @@ export function Quiz({ questionCount = QUESTION_COUNT, onQuizComplete }: QuizPro
 
   const next = () => {
     if (current + 1 >= questions.length) {
-      // Hoàn thành
+      // Hoàn thành - chỉ set phase, onQuizComplete được gọi qua useEffect
       setPhase("result");
-      const finalScore = score; // score đã được cập nhật
-      onQuizComplete?.(finalScore, questions.length);
       return;
     }
     setCurrent(c => c + 1);
     setSelected(null);
     setTimeLeft(TIME_LIMIT);
   };
+
+  // Gọi onQuizComplete 1 lần duy nhất khi vào phase result (tránh crash do parent setState trong event handler)
+  useEffect(() => {
+    if (phase === "result" && !completedRef.current && questions.length > 0) {
+      completedRef.current = true;
+      onQuizComplete?.(score, questions.length);
+    }
+    if (phase !== "result") {
+      completedRef.current = false;
+    }
+  }, [phase, score, questions.length, onQuizComplete]);
 
   // ===== INTRO =====
   if (phase === "intro") {
