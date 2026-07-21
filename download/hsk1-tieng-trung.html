@@ -7,9 +7,9 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://unpkg.com/htm@3/dist/htm.umd.js"></script>
 <style>
-  body { font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif; }
+  body { font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif; margin: 0; }
   .flip-card { perspective: 1500px; }
   .flip-card-inner {
     position: relative; width: 100%; height: 100%;
@@ -37,196 +37,187 @@
 <body>
 <div id="root"></div>
 
-<script type="text/babel" data-presets="react">
+<script>
+// ==================== Setup htm + React ====================
+const html = htm.bind(React.createElement);
 const { useState, useEffect, useMemo, useCallback, useRef } = React;
 
 // ==================== DATA: 150 từ HSK1 ====================
 const TOPICS = [
-  { id: "greetings",  name: "Chào hỏi",    emoji: "👋", color: "from-rose-400 to-pink-400",       desc: "Câu chào, cảm ơn, xin lỗi" },
-  { id: "pronouns",   name: "Đại từ",      emoji: "🧑", color: "from-amber-400 to-orange-400",    desc: "Ngôi xưng hô cơ bản" },
-  { id: "family",     name: "Gia đình",    emoji: "👨‍👩‍👧", color: "from-orange-400 to-red-400",  desc: "Các thành viên gia đình" },
-  { id: "numbers",    name: "Số đếm",      emoji: "🔢", color: "from-yellow-400 to-amber-400",    desc: "Số và lượng từ" },
-  { id: "time",       name: "Thời gian",   emoji: "🕐", color: "from-lime-400 to-green-400",      desc: "Ngày tháng, giờ giấc" },
-  { id: "objects",    name: "Đồ vật",      emoji: "🎒", color: "from-emerald-400 to-teal-400",    desc: "Đồ dùng học tập & sinh hoạt" },
-  { id: "food",       name: "Thực phẩm",   emoji: "🍚", color: "from-teal-400 to-cyan-400",       desc: "Ăn uống, đồ ăn thức uống" },
-  { id: "body",       name: "Cơ thể",      emoji: "🧠", color: "from-cyan-400 to-sky-400",        desc: "Bộ phận cơ thể" },
-  { id: "verbs",      name: "Động từ",     emoji: "🏃", color: "from-sky-400 to-blue-400",        desc: "Các hành động phổ biến" },
-  { id: "adjectives", name: "Tính từ",     emoji: "✨", color: "from-violet-400 to-purple-400",   desc: "Mô tả tính chất sự vật" },
-  { id: "places",     name: "Nơi chốn",    emoji: "🏛️", color: "from-fuchsia-400 to-pink-400",   desc: "Địa điểm & phương hướng" },
+  { id: "greetings",  name: "Chào hỏi",    emoji: "\u{1F44B}", color: "from-rose-400 to-pink-400",       desc: "Câu chào, cảm ơn, xin lỗi" },
+  { id: "pronouns",   name: "Đại từ",      emoji: "\u{1F9D1}", color: "from-amber-400 to-orange-400",    desc: "Ngôi xưng hô cơ bản" },
+  { id: "family",     name: "Gia đình",    emoji: "\u{1F468}\u{200D}\u{1F469}\u{200D}\u{1F467}", color: "from-orange-400 to-red-400",  desc: "Các thành viên gia đình" },
+  { id: "numbers",    name: "Số đếm",      emoji: "\u{1F522}", color: "from-yellow-400 to-amber-400",    desc: "Số và lượng từ" },
+  { id: "time",       name: "Thời gian",   emoji: "\u{1F550}", color: "from-lime-400 to-green-400",      desc: "Ngày tháng, giờ giấc" },
+  { id: "objects",    name: "Đồ vật",      emoji: "\u{1F392}", color: "from-emerald-400 to-teal-400",    desc: "Đồ dùng học tập & sinh hoạt" },
+  { id: "food",       name: "Thực phẩm",   emoji: "\u{1F35A}", color: "from-teal-400 to-cyan-400",       desc: "Ăn uống, đồ ăn thức uống" },
+  { id: "body",       name: "Cơ thể",      emoji: "\u{1F9E0}", color: "from-cyan-400 to-sky-400",        desc: "Bộ phận cơ thể" },
+  { id: "verbs",      name: "Động từ",     emoji: "\u{1F3C3}", color: "from-sky-400 to-blue-400",        desc: "Các hành động phổ biến" },
+  { id: "adjectives", name: "Tính từ",     emoji: "\u{2728}", color: "from-violet-400 to-purple-400",   desc: "Mô tả tính chất sự vật" },
+  { id: "places",     name: "Nơi chốn",    emoji: "\u{1F3DB}\u{FE0F}", color: "from-fuchsia-400 to-pink-400",   desc: "Địa điểm & phương hướng" },
 ];
 
 const VOCAB = [
-  // CHÀO HỎI (10)
-  { id: 1,  han: "你好",   pinyin: "nǐ hǎo",       meaning: "xin chào",            pos: "Thán từ",   emoji: "👋", ex: "你好，我叫小明。",       exp: "Nǐ hǎo, wǒ jiào Xiǎomíng.",         exv: "Xin chào, tôi tên là Tiểu Minh.", topic: "greetings" },
-  { id: 2,  han: "再见",   pinyin: "zài jiàn",     meaning: "tạm biệt",            pos: "Thán từ",   emoji: "🙋", ex: "明天见，再见！",         exp: "Míngtiān jiàn, zài jiàn!",          exv: "Hẹn gặp lại ngày mai, tạm biệt!", topic: "greetings" },
-  { id: 3,  han: "谢谢",   pinyin: "xiè xie",      meaning: "cảm ơn",              pos: "Động từ",   emoji: "🙏", ex: "谢谢你帮我。",           exp: "Xièxie nǐ bāng wǒ.",                exv: "Cảm ơn bạn đã giúp tôi.", topic: "greetings" },
-  { id: 4,  han: "不客气", pinyin: "bú kè qi",     meaning: "không có chi",        pos: "Tình thái từ", emoji: "😊", ex: "不客气，应该的。",     exp: "Bú kèqi, yīnggāi de.",              exv: "Không có chi, điều đáng làm.", topic: "greetings" },
-  { id: 5,  han: "对不起", pinyin: "duì bu qǐ",    meaning: "xin lỗi",             pos: "Động từ",   emoji: "😔", ex: "对不起，我迟到了。",     exp: "Duìbuqǐ, wǒ chídào le.",            exv: "Xin lỗi, tôi đến muộn.", topic: "greetings" },
-  { id: 6,  han: "没关系", pinyin: "méi guān xi",  meaning: "không sao",           pos: "Tình thái từ", emoji: "🤗", ex: "没关系，别担心。",     exp: "Méi guānxi, bié dānxīn.",           exv: "Không sao, đừng lo lắng.", topic: "greetings" },
-  { id: 7,  han: "请",     pinyin: "qǐng",         meaning: "làm ơn / xin mời",    pos: "Động từ",   emoji: "🤝", ex: "请进，请坐。",           exp: "Qǐng jìn, qǐng zuò.",               exv: "Mời vào, mời ngồi.", topic: "greetings" },
-  { id: 8,  han: "是",     pinyin: "shì",          meaning: "là",                  pos: "Động từ",   emoji: "✅", ex: "我是学生。",             exp: "Wǒ shì xuéshēng.",                  exv: "Tôi là học sinh.", topic: "greetings" },
-  { id: 9,  han: "不",     pinyin: "bù",           meaning: "không",               pos: "Phó từ",    emoji: "❌", ex: "我不是老师。",           exp: "Wǒ bú shì lǎoshī.",                 exv: "Tôi không phải là giáo viên.", topic: "greetings" },
-  { id: 10, han: "欢迎",   pinyin: "huān yíng",    meaning: "hoan nghênh",         pos: "Động từ",   emoji: "🎉", ex: "欢迎你们来中国！",       exp: "Huānyíng nǐmen lái Zhōngguó!",      exv: "Hoan nghênh các bạn đến Trung Quốc!", topic: "greetings" },
+  { id: 1,  han: "你好",   pinyin: "nǐ hǎo",       meaning: "xin chào",            pos: "Thán từ",   emoji: "\u{1F44B}", ex: "你好，我叫小明。",       exp: "Nǐ hǎo, wǒ jiào Xiǎomíng.",         exv: "Xin chào, tôi tên là Tiểu Minh.", topic: "greetings" },
+  { id: 2,  han: "再见",   pinyin: "zài jiàn",     meaning: "tạm biệt",            pos: "Thán từ",   emoji: "\u{1F64B}", ex: "明天见，再见！",         exp: "Míngtiān jiàn, zài jiàn!",          exv: "Hẹn gặp lại ngày mai, tạm biệt!", topic: "greetings" },
+  { id: 3,  han: "谢谢",   pinyin: "xiè xie",      meaning: "cảm ơn",              pos: "Động từ",   emoji: "\u{1F64F}", ex: "谢谢你帮我。",           exp: "Xièxie nǐ bāng wǒ.",                exv: "Cảm ơn bạn đã giúp tôi.", topic: "greetings" },
+  { id: 4,  han: "不客气", pinyin: "bú kè qi",     meaning: "không có chi",        pos: "Tình thái từ", emoji: "\u{1F60A}", ex: "不客气，应该的。",     exp: "Bú kèqi, yīnggāi de.",              exv: "Không có chi, điều đáng làm.", topic: "greetings" },
+  { id: 5,  han: "对不起", pinyin: "duì bu qǐ",    meaning: "xin lỗi",             pos: "Động từ",   emoji: "\u{1F614}", ex: "对不起，我迟到了。",     exp: "Duìbuqǐ, wǒ chídào le.",            exv: "Xin lỗi, tôi đến muộn.", topic: "greetings" },
+  { id: 6,  han: "没关系", pinyin: "méi guān xi",  meaning: "không sao",           pos: "Tình thái từ", emoji: "\u{1F917}", ex: "没关系，别担心。",     exp: "Méi guānxi, bié dānxīn.",           exv: "Không sao, đừng lo lắng.", topic: "greetings" },
+  { id: 7,  han: "请",     pinyin: "qǐng",         meaning: "làm ơn / xin mời",    pos: "Động từ",   emoji: "\u{1F91D}", ex: "请进，请坐。",           exp: "Qǐng jìn, qǐng zuò.",               exv: "Mời vào, mời ngồi.", topic: "greetings" },
+  { id: 8,  han: "是",     pinyin: "shì",          meaning: "là",                  pos: "Động từ",   emoji: "\u{2705}", ex: "我是学生。",             exp: "Wǒ shì xuéshēng.",                  exv: "Tôi là học sinh.", topic: "greetings" },
+  { id: 9,  han: "不",     pinyin: "bù",           meaning: "không",               pos: "Phó từ",    emoji: "\u{274C}", ex: "我不是老师。",           exp: "Wǒ bú shì lǎoshī.",                 exv: "Tôi không phải là giáo viên.", topic: "greetings" },
+  { id: 10, han: "欢迎",   pinyin: "huān yíng",    meaning: "hoan nghênh",         pos: "Động từ",   emoji: "\u{1F389}", ex: "欢迎你们来中国！",       exp: "Huānyíng nǐmen lái Zhōngguó!",      exv: "Hoan nghênh các bạn đến Trung Quốc!", topic: "greetings" },
 
-  // ĐẠI TỪ (15)
-  { id: 11, han: "我",     pinyin: "wǒ",           meaning: "tôi",                 pos: "Đại từ",    emoji: "🙋", ex: "我很高兴。",             exp: "Wǒ hěn gāoxìng.",                   exv: "Tôi rất vui.", topic: "pronouns" },
-  { id: 12, han: "你",     pinyin: "nǐ",           meaning: "bạn",                 pos: "Đại từ",    emoji: "👉", ex: "你好吗？",               exp: "Nǐ hǎo ma?",                       exv: "Bạn khỏe không?", topic: "pronouns" },
-  { id: 13, han: "您",     pinyin: "nín",          meaning: "ngài (lịch sự)",      pos: "Đại từ",    emoji: "🙇", ex: "您贵姓？",               exp: "Nín guì xìng?",                    exv: "Xin hỏi quý danh?", topic: "pronouns" },
-  { id: 14, han: "他",     pinyin: "tā",           meaning: "anh ấy",              pos: "Đại từ",    emoji: "👨", ex: "他是医生。",             exp: "Tā shì yīshēng.",                   exv: "Anh ấy là bác sĩ.", topic: "pronouns" },
-  { id: 15, han: "她",     pinyin: "tā",           meaning: "cô ấy",               pos: "Đại từ",    emoji: "👩", ex: "她很漂亮。",             exp: "Tā hěn piàoliang.",                 exv: "Cô ấy rất xinh đẹp.", topic: "pronouns" },
-  { id: 16, han: "我们",   pinyin: "wǒ men",       meaning: "chúng tôi",           pos: "Đại từ",    emoji: "👥", ex: "我们是同学。",           exp: "Wǒmen shì tóngxué.",                exv: "Chúng tôi là bạn học cùng lớp.", topic: "pronouns" },
-  { id: 17, han: "你们",   pinyin: "nǐ men",       meaning: "các bạn",             pos: "Đại từ",    emoji: "👫", ex: "你们去哪儿？",           exp: "Nǐmen qù nǎr?",                    exv: "Các bạn đi đâu?", topic: "pronouns" },
-  { id: 18, han: "他们",   pinyin: "tā men",       meaning: "họ (nam)",            pos: "Đại từ",    emoji: "👬", ex: "他们在学校。",           exp: "Tāmen zài xuéxiào.",                exv: "Họ đang ở trường.", topic: "pronouns" },
-  { id: 19, han: "这",     pinyin: "zhè",          meaning: "đây / này",           pos: "Đại từ",    emoji: "👈", ex: "这是我的书。",           exp: "Zhè shì wǒ de shū.",                exv: "Đây là quyển sách của tôi.", topic: "pronouns" },
-  { id: 20, han: "那",     pinyin: "nà",           meaning: "kia / đó",            pos: "Đại từ",    emoji: "👉", ex: "那是谁？",               exp: "Nà shì shuí?",                     exv: "Kia là ai?", topic: "pronouns" },
-  { id: 21, han: "谁",     pinyin: "shuí",         meaning: "ai",                  pos: "Đại từ",    emoji: "❓", ex: "你是谁？",               exp: "Nǐ shì shuí?",                     exv: "Bạn là ai?", topic: "pronouns" },
-  { id: 22, han: "什么",   pinyin: "shén me",      meaning: "gì / cái gì",         pos: "Đại từ",    emoji: "❔", ex: "这是什么？",             exp: "Zhè shì shénme?",                   exv: "Đây là cái gì?", topic: "pronouns" },
-  { id: 23, han: "哪",     pinyin: "nǎ",           meaning: "nào",                 pos: "Đại từ",    emoji: "🤔", ex: "你是哪国人？",           exp: "Nǐ shì nǎ guó rén?",                exv: "Bạn là người nước nào?", topic: "pronouns" },
-  { id: 24, han: "怎么",   pinyin: "zěn me",       meaning: "như thế nào",         pos: "Đại từ",    emoji: "🤷", ex: "你怎么了？",             exp: "Nǐ zěnme le?",                     exv: "Bạn làm sao vậy?", topic: "pronouns" },
-  { id: 25, han: "为什么", pinyin: "wèi shén me",  meaning: "tại sao",             pos: "Đại từ",    emoji: "💭", ex: "为什么不去？",           exp: "Wèishénme bú qù?",                  exv: "Tại sao không đi?", topic: "pronouns" },
+  { id: 11, han: "我",     pinyin: "wǒ",           meaning: "tôi",                 pos: "Đại từ",    emoji: "\u{1F64B}", ex: "我很高兴。",             exp: "Wǒ hěn gāoxìng.",                   exv: "Tôi rất vui.", topic: "pronouns" },
+  { id: 12, han: "你",     pinyin: "nǐ",           meaning: "bạn",                 pos: "Đại từ",    emoji: "\u{1F449}", ex: "你好吗？",               exp: "Nǐ hǎo ma?",                       exv: "Bạn khỏe không?", topic: "pronouns" },
+  { id: 13, han: "您",     pinyin: "nín",          meaning: "ngài (lịch sự)",      pos: "Đại từ",    emoji: "\u{1F647}", ex: "您贵姓？",               exp: "Nín guì xìng?",                    exv: "Xin hỏi quý danh?", topic: "pronouns" },
+  { id: 14, han: "他",     pinyin: "tā",           meaning: "anh ấy",              pos: "Đại từ",    emoji: "\u{1F468}", ex: "他是医生。",             exp: "Tā shì yīshēng.",                   exv: "Anh ấy là bác sĩ.", topic: "pronouns" },
+  { id: 15, han: "她",     pinyin: "tā",           meaning: "cô ấy",               pos: "Đại từ",    emoji: "\u{1F469}", ex: "她很漂亮。",             exp: "Tā hěn piàoliang.",                 exv: "Cô ấy rất xinh đẹp.", topic: "pronouns" },
+  { id: 16, han: "我们",   pinyin: "wǒ men",       meaning: "chúng tôi",           pos: "Đại từ",    emoji: "\u{1F465}", ex: "我们是同学。",           exp: "Wǒmen shì tóngxué.",                exv: "Chúng tôi là bạn học cùng lớp.", topic: "pronouns" },
+  { id: 17, han: "你们",   pinyin: "nǐ men",       meaning: "các bạn",             pos: "Đại từ",    emoji: "\u{1F46B}", ex: "你们去哪儿？",           exp: "Nǐmen qù nǎr?",                    exv: "Các bạn đi đâu?", topic: "pronouns" },
+  { id: 18, han: "他们",   pinyin: "tā men",       meaning: "họ (nam)",            pos: "Đại từ",    emoji: "\u{1F46C}", ex: "他们在学校。",           exp: "Tāmen zài xuéxiào.",                exv: "Họ đang ở trường.", topic: "pronouns" },
+  { id: 19, han: "这",     pinyin: "zhè",          meaning: "đây / này",           pos: "Đại từ",    emoji: "\u{1F448}", ex: "这是我的书。",           exp: "Zhè shì wǒ de shū.",                exv: "Đây là quyển sách của tôi.", topic: "pronouns" },
+  { id: 20, han: "那",     pinyin: "nà",           meaning: "kia / đó",            pos: "Đại từ",    emoji: "\u{1F449}", ex: "那是谁？",               exp: "Nà shì shuí?",                     exv: "Kia là ai?", topic: "pronouns" },
+  { id: 21, han: "谁",     pinyin: "shuí",         meaning: "ai",                  pos: "Đại từ",    emoji: "\u{2753}", ex: "你是谁？",               exp: "Nǐ shì shuí?",                     exv: "Bạn là ai?", topic: "pronouns" },
+  { id: 22, han: "什么",   pinyin: "shén me",      meaning: "gì / cái gì",         pos: "Đại từ",    emoji: "\u{2754}", ex: "这是什么？",             exp: "Zhè shì shénme?",                   exv: "Đây là cái gì?", topic: "pronouns" },
+  { id: 23, han: "哪",     pinyin: "nǎ",           meaning: "nào",                 pos: "Đại từ",    emoji: "\u{1F914}", ex: "你是哪国人？",           exp: "Nǐ shì nǎ guó rén?",                exv: "Bạn là người nước nào?", topic: "pronouns" },
+  { id: 24, han: "怎么",   pinyin: "zěn me",       meaning: "như thế nào",         pos: "Đại từ",    emoji: "\u{1F937}", ex: "你怎么了？",             exp: "Nǐ zěnme le?",                     exv: "Bạn làm sao vậy?", topic: "pronouns" },
+  { id: 25, han: "为什么", pinyin: "wèi shén me",  meaning: "tại sao",             pos: "Đại từ",    emoji: "\u{1F4AD}", ex: "为什么不去？",           exp: "Wèishénme bú qù?",                  exv: "Tại sao không đi?", topic: "pronouns" },
 
-  // GIA ĐÌNH (13)
-  { id: 26, han: "爸爸",   pinyin: "bà ba",        meaning: "bố / ba",             pos: "Danh từ",   emoji: "👨", ex: "我爸爸是老师。",         exp: "Wǒ bàba shì lǎoshī.",               exv: "Bố tôi là giáo viên.", topic: "family" },
-  { id: 27, han: "妈妈",   pinyin: "mā ma",        meaning: "mẹ / má",             pos: "Danh từ",   emoji: "👩", ex: "妈妈做饭。",             exp: "Māma zuò fàn.",                     exv: "Mẹ đang nấu cơm.", topic: "family" },
-  { id: 28, han: "哥哥",   pinyin: "gē ge",        meaning: "anh trai",            pos: "Danh từ",   emoji: "👦", ex: "哥哥很高。",             exp: "Gēge hěn gāo.",                     exv: "Anh trai tôi rất cao.", topic: "family" },
-  { id: 29, han: "弟弟",   pinyin: "dì di",        meaning: "em trai",             pos: "Danh từ",   emoji: "👦", ex: "弟弟今年五岁。",         exp: "Dìdi jīnnián wǔ suì.",              exv: "Em trai tôi năm nay 5 tuổi.", topic: "family" },
-  { id: 30, han: "姐姐",   pinyin: "jiě jie",      meaning: "chị gái",             pos: "Danh từ",   emoji: "👧", ex: "姐姐是学生。",           exp: "Jiějie shì xuéshēng.",              exv: "Chị gái là học sinh.", topic: "family" },
-  { id: 31, han: "妹妹",   pinyin: "mèi mei",      meaning: "em gái",              pos: "Danh từ",   emoji: "👧", ex: "妹妹很可爱。",           exp: "Mèimei hěn kě'ài.",                 exv: "Em gái rất đáng yêu.", topic: "family" },
-  { id: 32, han: "儿子",   pinyin: "ér zi",        meaning: "con trai",            pos: "Danh từ",   emoji: "👶", ex: "他们的儿子很聪明。",     exp: "Tāmen de érzi hěn cōngming.",       exv: "Con trai họ rất thông minh.", topic: "family" },
-  { id: 33, han: "女儿",   pinyin: "nǚ'ér",        meaning: "con gái",             pos: "Danh từ",   emoji: "👶", ex: "女儿喜欢唱歌。",         exp: "Nǚ'ér xǐhuan chàng gē.",            exv: "Con gái thích hát.", topic: "family" },
-  { id: 34, han: "家",     pinyin: "jiā",          meaning: "nhà / gia đình",      pos: "Danh từ",   emoji: "🏠", ex: "我家在北京。",           exp: "Wǒ jiā zài Běijīng.",               exv: "Nhà tôi ở Bắc Kinh.", topic: "family" },
-  { id: 35, han: "孩子",   pinyin: "hái zi",       meaning: "đứa trẻ / con cái",   pos: "Danh từ",   emoji: "🧒", ex: "孩子们在玩儿。",         exp: "Háizimen zài wánr.",                exv: "Các em đang chơi.", topic: "family" },
-  { id: 36, han: "先生",   pinyin: "xiān sheng",   meaning: "ông / chồng",         pos: "Danh từ",   emoji: "🤵", ex: "王先生是医生。",         exp: "Wáng xiānsheng shì yīshēng.",       exv: "Ông Vương là bác sĩ.", topic: "family" },
-  { id: 37, han: "太太",   pinyin: "tài tai",      meaning: "bà / vợ",             pos: "Danh từ",   emoji: "👰", ex: "李太太很热情。",         exp: "Lǐ tàitai hěn rèqíng.",             exv: "Bà Lý rất nhiệt tình.", topic: "family" },
-  { id: 38, han: "小姐",   pinyin: "xiǎo jie",     meaning: "cô / tiểu thư",       pos: "Danh từ",   emoji: "💁", ex: "小姐，请喝茶。",         exp: "Xiǎojie, qǐng hē chá.",             exv: "Cô ơi, mời uống trà.", topic: "family" },
+  { id: 26, han: "爸爸",   pinyin: "bà ba",        meaning: "bố / ba",             pos: "Danh từ",   emoji: "\u{1F468}", ex: "我爸爸是老师。",         exp: "Wǒ bàba shì lǎoshī.",               exv: "Bố tôi là giáo viên.", topic: "family" },
+  { id: 27, han: "妈妈",   pinyin: "mā ma",        meaning: "mẹ / má",             pos: "Danh từ",   emoji: "\u{1F469}", ex: "妈妈做饭。",             exp: "Māma zuò fàn.",                     exv: "Mẹ đang nấu cơm.", topic: "family" },
+  { id: 28, han: "哥哥",   pinyin: "gē ge",        meaning: "anh trai",            pos: "Danh từ",   emoji: "\u{1F466}", ex: "哥哥很高。",             exp: "Gēge hěn gāo.",                     exv: "Anh trai tôi rất cao.", topic: "family" },
+  { id: 29, han: "弟弟",   pinyin: "dì di",        meaning: "em trai",             pos: "Danh từ",   emoji: "\u{1F466}", ex: "弟弟今年五岁。",         exp: "Dìdi jīnnián wǔ suì.",              exv: "Em trai tôi năm nay 5 tuổi.", topic: "family" },
+  { id: 30, han: "姐姐",   pinyin: "jiě jie",      meaning: "chị gái",             pos: "Danh từ",   emoji: "\u{1F467}", ex: "姐姐是学生。",           exp: "Jiějie shì xuéshēng.",              exv: "Chị gái là học sinh.", topic: "family" },
+  { id: 31, han: "妹妹",   pinyin: "mèi mei",      meaning: "em gái",              pos: "Danh từ",   emoji: "\u{1F467}", ex: "妹妹很可爱。",           exp: "Mèimei hěn kě'ài.",                 exv: "Em gái rất đáng yêu.", topic: "family" },
+  { id: 32, han: "儿子",   pinyin: "ér zi",        meaning: "con trai",            pos: "Danh từ",   emoji: "\u{1F476}", ex: "他们的儿子很聪明。",     exp: "Tāmen de érzi hěn cōngming.",       exv: "Con trai họ rất thông minh.", topic: "family" },
+  { id: 33, han: "女儿",   pinyin: "nǚ'ér",        meaning: "con gái",             pos: "Danh từ",   emoji: "\u{1F476}", ex: "女儿喜欢唱歌。",         exp: "Nǚ'ér xǐhuan chàng gē.",            exv: "Con gái thích hát.", topic: "family" },
+  { id: 34, han: "家",     pinyin: "jiā",          meaning: "nhà / gia đình",      pos: "Danh từ",   emoji: "\u{1F3E0}", ex: "我家在北京。",           exp: "Wǒ jiā zài Běijīng.",               exv: "Nhà tôi ở Bắc Kinh.", topic: "family" },
+  { id: 35, han: "孩子",   pinyin: "hái zi",       meaning: "đứa trẻ / con cái",   pos: "Danh từ",   emoji: "\u{1F9D2}", ex: "孩子们在玩儿。",         exp: "Háizimen zài wánr.",                exv: "Các em đang chơi.", topic: "family" },
+  { id: 36, han: "先生",   pinyin: "xiān sheng",   meaning: "ông / chồng",         pos: "Danh từ",   emoji: "\u{1F935}", ex: "王先生是医生。",         exp: "Wáng xiānsheng shì yīshēng.",       exv: "Ông Vương là bác sĩ.", topic: "family" },
+  { id: 37, han: "太太",   pinyin: "tài tai",      meaning: "bà / vợ",             pos: "Danh từ",   emoji: "\u{1F470}", ex: "李太太很热情。",         exp: "Lǐ tàitai hěn rèqíng.",             exv: "Bà Lý rất nhiệt tình.", topic: "family" },
+  { id: 38, han: "小姐",   pinyin: "xiǎo jie",     meaning: "cô / tiểu thư",       pos: "Danh từ",   emoji: "\u{1F481}", ex: "小姐，请喝茶。",         exp: "Xiǎojie, qǐng hē chá.",             exv: "Cô ơi, mời uống trà.", topic: "family" },
 
-  // SỐ ĐẾM (17)
-  { id: 39, han: "一",     pinyin: "yī",           meaning: "một",                 pos: "Số từ",     emoji: "1️⃣", ex: "我有一个苹果。",        exp: "Wǒ yǒu yí ge píngguǒ.",             exv: "Tôi có một quả táo.", topic: "numbers" },
-  { id: 40, han: "二",     pinyin: "èr",           meaning: "hai",                 pos: "Số từ",     emoji: "2️⃣", ex: "我二十岁。",            exp: "Wǒ èrshí suì.",                     exv: "Tôi hai mươi tuổi.", topic: "numbers" },
-  { id: 41, han: "三",     pinyin: "sān",          meaning: "ba",                  pos: "Số từ",     emoji: "3️⃣", ex: "三个人在这儿。",        exp: "Sān ge rén zài zhèr.",              exv: "Ba người ở đây.", topic: "numbers" },
-  { id: 42, han: "四",     pinyin: "sì",           meaning: "bốn",                 pos: "Số từ",     emoji: "4️⃣", ex: "桌子上有四本书。",      exp: "Zhuōzi shàng yǒu sì běn shū.",      exv: "Trên bàn có bốn quyển sách.", topic: "numbers" },
-  { id: 43, han: "五",     pinyin: "wǔ",           meaning: "năm",                 pos: "Số từ",     emoji: "5️⃣", ex: "我有五个朋友。",        exp: "Wǒ yǒu wǔ ge péngyou.",             exv: "Tôi có năm người bạn.", topic: "numbers" },
-  { id: 44, han: "六",     pinyin: "liù",          meaning: "sáu",                 pos: "Số từ",     emoji: "6️⃣", ex: "现在六点。",            exp: "Xiànzài liù diǎn.",                 exv: "Bây giờ là sáu giờ.", topic: "numbers" },
-  { id: 45, han: "七",     pinyin: "qī",           meaning: "bảy",                 pos: "Số từ",     emoji: "7️⃣", ex: "一周有七天。",          exp: "Yì zhōu yǒu qī tiān.",              exv: "Một tuần có bảy ngày.", topic: "numbers" },
-  { id: 46, han: "八",     pinyin: "bā",           meaning: "tám",                 pos: "Số từ",     emoji: "8️⃣", ex: "八月很热。",            exp: "Bā yuè hěn rè.",                    exv: "Tháng tám rất nóng.", topic: "numbers" },
-  { id: 47, han: "九",     pinyin: "jiǔ",          meaning: "chín",                pos: "Số từ",     emoji: "9️⃣", ex: "九点开始上课。",        exp: "Jiǔ diǎn kāishǐ shàngkè.",          exv: "Chín giờ bắt đầu học.", topic: "numbers" },
-  { id: 48, han: "十",     pinyin: "shí",          meaning: "mười",                pos: "Số từ",     emoji: "🔟", ex: "十个人来了。",          exp: "Shí ge rén lái le.",                exv: "Mười người đã đến.", topic: "numbers" },
-  { id: 49, han: "百",     pinyin: "bǎi",          meaning: "trăm",                pos: "Số từ",     emoji: "💯", ex: "一百个学生。",          exp: "Yì bǎi ge xuéshēng.",               exv: "Một trăm học sinh.", topic: "numbers" },
-  { id: 50, han: "千",     pinyin: "qiān",         meaning: "nghìn",               pos: "Số từ",     emoji: "🔢", ex: "一千块钱。",            exp: "Yì qiān kuài qián.",                exv: "Một nghìn tệ.", topic: "numbers" },
-  { id: 51, han: "万",     pinyin: "wàn",          meaning: "mười nghìn",          pos: "Số từ",     emoji: "🔢", ex: "一年有几天？",          exp: "Yì nián yǒu jǐ tiān?",              exv: "Một năm có bao nhiêu ngày?", topic: "numbers" },
-  { id: 52, han: "零",     pinyin: "líng",         meaning: "số không",            pos: "Số từ",     emoji: "0️⃣", ex: "电话号码是零。",        exp: "Diànhuà hàomǎ shì líng.",           exv: "Số điện thoại có số không.", topic: "numbers" },
-  { id: 53, han: "两",     pinyin: "liǎng",        meaning: "hai (với lượng từ)",  pos: "Số từ",     emoji: "✌️", ex: "我有两个苹果。",        exp: "Wǒ yǒu liǎng ge píngguǒ.",          exv: "Tôi có hai quả táo.", topic: "numbers" },
-  { id: 54, han: "个",     pinyin: "ge",           meaning: "cái (lượng từ chung)", pos: "Lượng từ",  emoji: "▫️", ex: "一个人，一个苹果。",    exp: "Yí ge rén, yí ge píngguǒ.",         exv: "Một người, một quả táo.", topic: "numbers" },
-  { id: 55, han: "岁",     pinyin: "suì",          meaning: "tuổi",                pos: "Lượng từ",  emoji: "🎂", ex: "你几岁了？",            exp: "Nǐ jǐ suì le?",                     exv: "Bạn bao nhiêu tuổi?", topic: "numbers" },
+  { id: 39, han: "一",     pinyin: "yī",           meaning: "một",                 pos: "Số từ",     emoji: "1\uFE0F\u20E3", ex: "我有一个苹果。",        exp: "Wǒ yǒu yí ge píngguǒ.",             exv: "Tôi có một quả táo.", topic: "numbers" },
+  { id: 40, han: "二",     pinyin: "èr",           meaning: "hai",                 pos: "Số từ",     emoji: "2\uFE0F\u20E3", ex: "我二十岁。",            exp: "Wǒ èrshí suì.",                     exv: "Tôi hai mươi tuổi.", topic: "numbers" },
+  { id: 41, han: "三",     pinyin: "sān",          meaning: "ba",                  pos: "Số từ",     emoji: "3\uFE0F\u20E3", ex: "三个人在这儿。",        exp: "Sān ge rén zài zhèr.",              exv: "Ba người ở đây.", topic: "numbers" },
+  { id: 42, han: "四",     pinyin: "sì",           meaning: "bốn",                 pos: "Số từ",     emoji: "4\uFE0F\u20E3", ex: "桌子上有四本书。",      exp: "Zhuōzi shàng yǒu sì běn shū.",      exv: "Trên bàn có bốn quyển sách.", topic: "numbers" },
+  { id: 43, han: "五",     pinyin: "wǔ",           meaning: "năm",                 pos: "Số từ",     emoji: "5\uFE0F\u20E3", ex: "我有五个朋友。",        exp: "Wǒ yǒu wǔ ge péngyou.",             exv: "Tôi có năm người bạn.", topic: "numbers" },
+  { id: 44, han: "六",     pinyin: "liù",          meaning: "sáu",                 pos: "Số từ",     emoji: "6\uFE0F\u20E3", ex: "现在六点。",            exp: "Xiànzài liù diǎn.",                 exv: "Bây giờ là sáu giờ.", topic: "numbers" },
+  { id: 45, han: "七",     pinyin: "qī",           meaning: "bảy",                 pos: "Số từ",     emoji: "7\uFE0F\u20E3", ex: "一周有七天。",          exp: "Yì zhōu yǒu qī tiān.",              exv: "Một tuần có bảy ngày.", topic: "numbers" },
+  { id: 46, han: "八",     pinyin: "bā",           meaning: "tám",                 pos: "Số từ",     emoji: "8\uFE0F\u20E3", ex: "八月很热。",            exp: "Bā yuè hěn rè.",                    exv: "Tháng tám rất nóng.", topic: "numbers" },
+  { id: 47, han: "九",     pinyin: "jiǔ",          meaning: "chín",                pos: "Số từ",     emoji: "9\uFE0F\u20E3", ex: "九点开始上课。",        exp: "Jiǔ diǎn kāishǐ shàngkè.",          exv: "Chín giờ bắt đầu học.", topic: "numbers" },
+  { id: 48, han: "十",     pinyin: "shí",          meaning: "mười",                pos: "Số từ",     emoji: "\u{1F51F}", ex: "十个人来了。",          exp: "Shí ge rén lái le.",                exv: "Mười người đã đến.", topic: "numbers" },
+  { id: 49, han: "百",     pinyin: "bǎi",          meaning: "trăm",                pos: "Số từ",     emoji: "\u{1F4AF}", ex: "一百个学生。",          exp: "Yì bǎi ge xuéshēng.",               exv: "Một trăm học sinh.", topic: "numbers" },
+  { id: 50, han: "千",     pinyin: "qiān",         meaning: "nghìn",               pos: "Số từ",     emoji: "\u{1F522}", ex: "一千块钱。",            exp: "Yì qiān kuài qián.",                exv: "Một nghìn tệ.", topic: "numbers" },
+  { id: 51, han: "万",     pinyin: "wàn",          meaning: "mười nghìn",          pos: "Số từ",     emoji: "\u{1F522}", ex: "一年有几天？",          exp: "Yì nián yǒu jǐ tiān?",              exv: "Một năm có bao nhiêu ngày?", topic: "numbers" },
+  { id: 52, han: "零",     pinyin: "líng",         meaning: "số không",            pos: "Số từ",     emoji: "0\uFE0F\u20E3", ex: "电话号码是零。",        exp: "Diànhuà hàomǎ shì líng.",           exv: "Số điện thoại có số không.", topic: "numbers" },
+  { id: 53, han: "两",     pinyin: "liǎng",        meaning: "hai (với lượng từ)",  pos: "Số từ",     emoji: "\u{270C}\uFE0F", ex: "我有两个苹果。",        exp: "Wǒ yǒu liǎng ge píngguǒ.",          exv: "Tôi có hai quả táo.", topic: "numbers" },
+  { id: 54, han: "个",     pinyin: "ge",           meaning: "cái (lượng từ chung)", pos: "Lượng từ",  emoji: "\u{25AB}\uFE0F", ex: "一个人，一个苹果。",    exp: "Yí ge rén, yí ge píngguǒ.",         exv: "Một người, một quả táo.", topic: "numbers" },
+  { id: 55, han: "岁",     pinyin: "suì",          meaning: "tuổi",                pos: "Lượng từ",  emoji: "\u{1F382}", ex: "你几岁了？",            exp: "Nǐ jǐ suì le?",                     exv: "Bạn bao nhiêu tuổi?", topic: "numbers" },
 
-  // THỜI GIAN (16)
-  { id: 56, han: "年",     pinyin: "nián",         meaning: "năm",                 pos: "Danh từ",   emoji: "📅", ex: "今年是2024年。",        exp: "Jīnnián shì èr líng èr sì nián.",   exv: "Năm nay là năm 2024.", topic: "time" },
-  { id: 57, han: "月",     pinyin: "yuè",          meaning: "tháng",               pos: "Danh từ",   emoji: "🗓️", ex: "现在是几月？",         exp: "Xiànzài shì jǐ yuè?",               exv: "Bây giờ là tháng mấy?", topic: "time" },
-  { id: 58, han: "日",     pinyin: "rì",           meaning: "ngày / mặt trời",     pos: "Danh từ",   emoji: "☀️", ex: "十月一日是国庆节。",    exp: "Shí yuè yí rì shì guóqìng jié.",    exv: "Mùng 1 tháng 10 là Quốc khánh.", topic: "time" },
-  { id: 59, han: "号",     pinyin: "hào",          meaning: "ngày (trong tháng)",  pos: "Danh từ",   emoji: "📅", ex: "今天几号？",            exp: "Jīntiān jǐ hào?",                   exv: "Hôm nay ngày mấy?", topic: "time" },
-  { id: 60, han: "星期",   pinyin: "xīng qī",      meaning: "tuần / thứ",          pos: "Danh từ",   emoji: "📆", ex: "今天星期几？",          exp: "Jīntiān xīngqī jǐ?",                exv: "Hôm nay là thứ mấy?", topic: "time" },
-  { id: 61, han: "天",     pinyin: "tiān",         meaning: "ngày / bầu trời",     pos: "Danh từ",   emoji: "🌤️", ex: "今天天气很好。",       exp: "Jīntiān tiānqì hěn hǎo.",           exv: "Hôm nay thời tiết rất đẹp.", topic: "time" },
-  { id: 62, han: "今天",   pinyin: "jīn tiān",     meaning: "hôm nay",             pos: "Danh từ",   emoji: "📌", ex: "今天我很忙。",          exp: "Jīntiān wǒ hěn máng.",              exv: "Hôm nay tôi rất bận.", topic: "time" },
-  { id: 63, han: "明天",   pinyin: "míng tiān",    meaning: "ngày mai",            pos: "Danh từ",   emoji: "🔜", ex: "明天我去北京。",        exp: "Míngtiān wǒ qù Běijīng.",           exv: "Ngày mai tôi đi Bắc Kinh.", topic: "time" },
-  { id: 64, han: "昨天",   pinyin: "zuó tiān",     meaning: "hôm qua",             pos: "Danh từ",   emoji: "🔙", ex: "昨天我去看电影了。",    exp: "Zuótiān wǒ qù kàn diànyǐng le.",    exv: "Hôm qua tôi đi xem phim.", topic: "time" },
-  { id: 65, han: "现在",   pinyin: "xiàn zài",     meaning: "bây giờ",             pos: "Danh từ",   emoji: "⏰", ex: "现在几点？",            exp: "Xiànzài jǐ diǎn?",                  exv: "Bây giờ là mấy giờ?", topic: "time" },
-  { id: 66, han: "时候",   pinyin: "shí hou",      meaning: "lúc / thời điểm",     pos: "Danh từ",   emoji: "⌚", ex: "什么时候去？",          exp: "Shénme shíhou qù?",                 exv: "Lúc nào đi?", topic: "time" },
-  { id: 67, han: "点",     pinyin: "diǎn",         meaning: "giờ (đồng hồ)",       pos: "Lượng từ",  emoji: "🕐", ex: "三点钟见面。",          exp: "Sān diǎn zhōng jiàn miàn.",         exv: "Ba giờ gặp nhau.", topic: "time" },
-  { id: 68, han: "分",     pinyin: "fēn",          meaning: "phút",                pos: "Lượng từ",  emoji: "⏱️", ex: "三点二十分。",         exp: "Sān diǎn èrshí fēn.",               exv: "Ba giờ hai mươi phút.", topic: "time" },
-  { id: 69, han: "上午",   pinyin: "shàng wǔ",     meaning: "buổi sáng",           pos: "Danh từ",   emoji: "🌅", ex: "上午我去上课。",        exp: "Shàngwǔ wǒ qù shàngkè.",            exv: "Buổi sáng tôi đi học.", topic: "time" },
-  { id: 70, han: "下午",   pinyin: "xià wǔ",       meaning: "buổi chiều",          pos: "Danh từ",   emoji: "🌇", ex: "下午我去打球。",        exp: "Xiàwǔ wǒ qù dǎ qiú.",               exv: "Buổi chiều tôi đi chơi bóng.", topic: "time" },
-  { id: 71, han: "时间",   pinyin: "shí jiān",     meaning: "thời gian",           pos: "Danh từ",   emoji: "⏳", ex: "时间过得真快！",        exp: "Shíjiān guò de zhēn kuài!",         exv: "Thời gian trôi nhanh thật!", topic: "time" },
+  { id: 56, han: "年",     pinyin: "nián",         meaning: "năm",                 pos: "Danh từ",   emoji: "\u{1F4C5}", ex: "今年是2024年。",        exp: "Jīnnián shì èr líng èr sì nián.",   exv: "Năm nay là năm 2024.", topic: "time" },
+  { id: 57, han: "月",     pinyin: "yuè",          meaning: "tháng",               pos: "Danh từ",   emoji: "\u{1F5D3}\uFE0F", ex: "现在是几月？",         exp: "Xiànzài shì jǐ yuè?",               exv: "Bây giờ là tháng mấy?", topic: "time" },
+  { id: 58, han: "日",     pinyin: "rì",           meaning: "ngày / mặt trời",     pos: "Danh từ",   emoji: "\u{2600}\uFE0F", ex: "十月一日是国庆节。",    exp: "Shí yuè yí rì shì guóqìng jié.",    exv: "Mùng 1 tháng 10 là Quốc khánh.", topic: "time" },
+  { id: 59, han: "号",     pinyin: "hào",          meaning: "ngày (trong tháng)",  pos: "Danh từ",   emoji: "\u{1F4C5}", ex: "今天几号？",            exp: "Jīntiān jǐ hào?",                   exv: "Hôm nay ngày mấy?", topic: "time" },
+  { id: 60, han: "星期",   pinyin: "xīng qī",      meaning: "tuần / thứ",          pos: "Danh từ",   emoji: "\u{1F4C6}", ex: "今天星期几？",          exp: "Jīntiān xīngqī jǐ?",                exv: "Hôm nay là thứ mấy?", topic: "time" },
+  { id: 61, han: "天",     pinyin: "tiān",         meaning: "ngày / bầu trời",     pos: "Danh từ",   emoji: "\u{1F324}\uFE0F", ex: "今天天气很好。",       exp: "Jīntiān tiānqì hěn hǎo.",           exv: "Hôm nay thời tiết rất đẹp.", topic: "time" },
+  { id: 62, han: "今天",   pinyin: "jīn tiān",     meaning: "hôm nay",             pos: "Danh từ",   emoji: "\u{1F4CC}", ex: "今天我很忙。",          exp: "Jīntiān wǒ hěn máng.",              exv: "Hôm nay tôi rất bận.", topic: "time" },
+  { id: 63, han: "明天",   pinyin: "míng tiān",    meaning: "ngày mai",            pos: "Danh từ",   emoji: "\u{1F505}", ex: "明天我去北京。",        exp: "Míngtiān wǒ qù Běijīng.",           exv: "Ngày mai tôi đi Bắc Kinh.", topic: "time" },
+  { id: 64, han: "昨天",   pinyin: "zuó tiān",     meaning: "hôm qua",             pos: "Danh từ",   emoji: "\u{1F519}", ex: "昨天我去看电影了。",    exp: "Zuótiān wǒ qù kàn diànyǐng le.",    exv: "Hôm qua tôi đi xem phim.", topic: "time" },
+  { id: 65, han: "现在",   pinyin: "xiàn zài",     meaning: "bây giờ",             pos: "Danh từ",   emoji: "\u{23F0}", ex: "现在几点？",            exp: "Xiànzài jǐ diǎn?",                  exv: "Bây giờ là mấy giờ?", topic: "time" },
+  { id: 66, han: "时候",   pinyin: "shí hou",      meaning: "lúc / thời điểm",     pos: "Danh từ",   emoji: "\u{231A}", ex: "什么时候去？",          exp: "Shénme shíhou qù?",                 exv: "Lúc nào đi?", topic: "time" },
+  { id: 67, han: "点",     pinyin: "diǎn",         meaning: "giờ (đồng hồ)",       pos: "Lượng từ",  emoji: "\u{1F550}", ex: "三点钟见面。",          exp: "Sān diǎn zhōng jiàn miàn.",         exv: "Ba giờ gặp nhau.", topic: "time" },
+  { id: 68, han: "分",     pinyin: "fēn",          meaning: "phút",                pos: "Lượng từ",  emoji: "\u{23F1}\uFE0F", ex: "三点二十分。",         exp: "Sān diǎn èrshí fēn.",               exv: "Ba giờ hai mươi phút.", topic: "time" },
+  { id: 69, han: "上午",   pinyin: "shàng wǔ",     meaning: "buổi sáng",           pos: "Danh từ",   emoji: "\u{1F305}", ex: "上午我去上课。",        exp: "Shàngwǔ wǒ qù shàngkè.",            exv: "Buổi sáng tôi đi học.", topic: "time" },
+  { id: 70, han: "下午",   pinyin: "xià wǔ",       meaning: "buổi chiều",          pos: "Danh từ",   emoji: "\u{1F307}", ex: "下午我去打球。",        exp: "Xiàwǔ wǒ qù dǎ qiú.",               exv: "Buổi chiều tôi đi chơi bóng.", topic: "time" },
+  { id: 71, han: "时间",   pinyin: "shí jiān",     meaning: "thời gian",           pos: "Danh từ",   emoji: "\u{23F3}", ex: "时间过得真快！",        exp: "Shíjiān guò de zhēn kuài!",         exv: "Thời gian trôi nhanh thật!", topic: "time" },
 
-  // ĐỒ VẬT (16)
-  { id: 72, han: "书",     pinyin: "shū",          meaning: "sách",                pos: "Danh từ",   emoji: "📚", ex: "这是一本好书。",        exp: "Zhè shì yì běn hǎo shū.",            exv: "Đây là một quyển sách hay.", topic: "objects" },
-  { id: 73, han: "桌子",   pinyin: "zhuō zi",      meaning: "bàn",                 pos: "Danh từ",   emoji: "🪑", ex: "桌子上有书。",          exp: "Zhuōzi shàng yǒu shū.",             exv: "Trên bàn có sách.", topic: "objects" },
-  { id: 74, han: "椅子",   pinyin: "yǐ zi",        meaning: "ghế",                 pos: "Danh từ",   emoji: "🪑", ex: "请坐在椅子上。",        exp: "Qǐng zuò zài yǐzi shàng.",          exv: "Xin ngồi trên ghế.", topic: "objects" },
-  { id: 75, han: "杯子",   pinyin: "bēi zi",       meaning: "cái cốc",             pos: "Danh từ",   emoji: "🥤", ex: "杯子里有水。",          exp: "Bēizi lǐ yǒu shuǐ.",                exv: "Trong cốc có nước.", topic: "objects" },
-  { id: 76, han: "电脑",   pinyin: "diàn nǎo",     meaning: "máy tính",            pos: "Danh từ",   emoji: "💻", ex: "我要买电脑。",          exp: "Wǒ yào mǎi diànnǎo.",               exv: "Tôi muốn mua máy tính.", topic: "objects" },
-  { id: 77, han: "电视",   pinyin: "diàn shì",     meaning: "tivi",                pos: "Danh từ",   emoji: "📺", ex: "他在看电视。",          exp: "Tā zài kàn diànshì.",               exv: "Anh ấy đang xem tivi.", topic: "objects" },
-  { id: 78, han: "电话",   pinyin: "diàn huà",     meaning: "điện thoại",          pos: "Danh từ",   emoji: "📞", ex: "你的电话号码是多少？",  exp: "Nǐ de diànhuà hàomǎ shì duōshao?",  exv: "Số điện thoại của bạn là bao nhiêu?", topic: "objects" },
-  { id: 79, han: "车",     pinyin: "chē",          meaning: "xe",                  pos: "Danh từ",   emoji: "🚗", ex: "这是我的车。",          exp: "Zhè shì wǒ de chē.",                exv: "Đây là xe của tôi.", topic: "objects" },
-  { id: 80, han: "笔",     pinyin: "bǐ",           meaning: "bút",                 pos: "Danh từ",   emoji: "🖊️", ex: "你有几支笔？",         exp: "Nǐ yǒu jǐ zhī bǐ?",                 exv: "Bạn có mấy cây bút?", topic: "objects" },
-  { id: 81, han: "衣服",   pinyin: "yī fu",        meaning: "quần áo",             pos: "Danh từ",   emoji: "👕", ex: "这件衣服很漂亮。",      exp: "Zhè jiàn yīfu hěn piàoliang.",      exv: "Bộ quần áo này rất đẹp.", topic: "objects" },
-  { id: 82, han: "伞",     pinyin: "sǎn",          meaning: "ô / dù",              pos: "Danh từ",   emoji: "☂️", ex: "今天带伞了吗？",       exp: "Jīntiān dài sǎn le ma?",            exv: "Hôm nay bạn mang ô chưa?", topic: "objects" },
-  { id: 83, han: "表",     pinyin: "biǎo",         meaning: "đồng hồ đeo tay",     pos: "Danh từ",   emoji: "⌚", ex: "我的表很准。",          exp: "Wǒ de biǎo hěn zhǔn.",              exv: "Đồng hồ của tôi rất chuẩn.", topic: "objects" },
-  { id: 84, han: "钱",     pinyin: "qián",         meaning: "tiền",                pos: "Danh từ",   emoji: "💰", ex: "我没带钱。",            exp: "Wǒ méi dài qián.",                  exv: "Tôi không mang tiền.", topic: "objects" },
-  { id: 85, han: "票",     pinyin: "piào",         meaning: "vé",                  pos: "Danh từ",   emoji: "🎟️", ex: "买两张票。",           exp: "Mǎi liǎng zhāng piào.",             exv: "Mua hai tấm vé.", topic: "objects" },
-  { id: 86, han: "纸",     pinyin: "zhǐ",          meaning: "giấy",                pos: "Danh từ",   emoji: "📄", ex: "给我一张纸。",          exp: "Gěi wǒ yì zhāng zhǐ.",              exv: "Cho tôi một tờ giấy.", topic: "objects" },
-  { id: 87, han: "水果",   pinyin: "shuǐ guǒ",     meaning: "trái cây",            pos: "Danh từ",   emoji: "🍎", ex: "我喜欢吃水果。",        exp: "Wǒ xǐhuan chī shuǐguǒ.",            exv: "Tôi thích ăn trái cây.", topic: "objects" },
+  { id: 72, han: "书",     pinyin: "shū",          meaning: "sách",                pos: "Danh từ",   emoji: "\u{1F4DA}", ex: "这是一本好书。",        exp: "Zhè shì yì běn hǎo shū.",            exv: "Đây là một quyển sách hay.", topic: "objects" },
+  { id: 73, han: "桌子",   pinyin: "zhuō zi",      meaning: "bàn",                 pos: "Danh từ",   emoji: "\u{1FA91}", ex: "桌子上有书。",          exp: "Zhuōzi shàng yǒu shū.",             exv: "Trên bàn có sách.", topic: "objects" },
+  { id: 74, han: "椅子",   pinyin: "yǐ zi",        meaning: "ghế",                 pos: "Danh từ",   emoji: "\u{1FA91}", ex: "请坐在椅子上。",        exp: "Qǐng zuò zài yǐzi shàng.",          exv: "Xin ngồi trên ghế.", topic: "objects" },
+  { id: 75, han: "杯子",   pinyin: "bēi zi",       meaning: "cái cốc",             pos: "Danh từ",   emoji: "\u{1F964}", ex: "杯子里有水。",          exp: "Bēizi lǐ yǒu shuǐ.",                exv: "Trong cốc có nước.", topic: "objects" },
+  { id: 76, han: "电脑",   pinyin: "diàn nǎo",     meaning: "máy tính",            pos: "Danh từ",   emoji: "\u{1F4BB}", ex: "我要买电脑。",          exp: "Wǒ yào mǎi diànnǎo.",               exv: "Tôi muốn mua máy tính.", topic: "objects" },
+  { id: 77, han: "电视",   pinyin: "diàn shì",     meaning: "tivi",                pos: "Danh từ",   emoji: "\u{1F4FA}", ex: "他在看电视。",          exp: "Tā zài kàn diànshì.",               exv: "Anh ấy đang xem tivi.", topic: "objects" },
+  { id: 78, han: "电话",   pinyin: "diàn huà",     meaning: "điện thoại",          pos: "Danh từ",   emoji: "\u{1F4DE}", ex: "你的电话号码是多少？",  exp: "Nǐ de diànhuà hàomǎ shì duōshao?",  exv: "Số điện thoại của bạn là bao nhiêu?", topic: "objects" },
+  { id: 79, han: "车",     pinyin: "chē",          meaning: "xe",                  pos: "Danh từ",   emoji: "\u{1F697}", ex: "这是我的车。",          exp: "Zhè shì wǒ de chē.",                exv: "Đây là xe của tôi.", topic: "objects" },
+  { id: 80, han: "笔",     pinyin: "bǐ",           meaning: "bút",                 pos: "Danh từ",   emoji: "\u{1F58A}\uFE0F", ex: "你有几支笔？",         exp: "Nǐ yǒu jǐ zhī bǐ?",                 exv: "Bạn có mấy cây bút?", topic: "objects" },
+  { id: 81, han: "衣服",   pinyin: "yī fu",        meaning: "quần áo",             pos: "Danh từ",   emoji: "\u{1F455}", ex: "这件衣服很漂亮。",      exp: "Zhè jiàn yīfu hěn piàoliang.",      exv: "Bộ quần áo này rất đẹp.", topic: "objects" },
+  { id: 82, han: "伞",     pinyin: "sǎn",          meaning: "ô / dù",              pos: "Danh từ",   emoji: "\u{2602}\uFE0F", ex: "今天带伞了吗？",       exp: "Jīntiān dài sǎn le ma?",            exv: "Hôm nay bạn mang ô chưa?", topic: "objects" },
+  { id: 83, han: "表",     pinyin: "biǎo",         meaning: "đồng hồ đeo tay",     pos: "Danh từ",   emoji: "\u{231A}", ex: "我的表很准。",          exp: "Wǒ de biǎo hěn zhǔn.",              exv: "Đồng hồ của tôi rất chuẩn.", topic: "objects" },
+  { id: 84, han: "钱",     pinyin: "qián",         meaning: "tiền",                pos: "Danh từ",   emoji: "\u{1F4B0}", ex: "我没带钱。",            exp: "Wǒ méi dài qián.",                  exv: "Tôi không mang tiền.", topic: "objects" },
+  { id: 85, han: "票",     pinyin: "piào",         meaning: "vé",                  pos: "Danh từ",   emoji: "\u{1F39F}\uFE0F", ex: "买两张票。",           exp: "Mǎi liǎng zhāng piào.",             exv: "Mua hai tấm vé.", topic: "objects" },
+  { id: 86, han: "纸",     pinyin: "zhǐ",          meaning: "giấy",                pos: "Danh từ",   emoji: "\u{1F4C4}", ex: "给我一张纸。",          exp: "Gěi wǒ yì zhāng zhǐ.",              exv: "Cho tôi một tờ giấy.", topic: "objects" },
+  { id: 87, han: "水果",   pinyin: "shuǐ guǒ",     meaning: "trái cây",            pos: "Danh từ",   emoji: "\u{1F34E}", ex: "我喜欢吃水果。",        exp: "Wǒ xǐhuan chī shuǐguǒ.",            exv: "Tôi thích ăn trái cây.", topic: "objects" },
 
-  // THỰC PHẨM (12)
-  { id: 88, han: "吃",     pinyin: "chī",          meaning: "ăn",                  pos: "Động từ",   emoji: "🍽️", ex: "我们吃饭吧。",         exp: "Wǒmen chī fàn ba.",                 exv: "Chúng ta ăn cơm đi.", topic: "food" },
-  { id: 89, han: "喝",     pinyin: "hē",           meaning: "uống",                pos: "Động từ",   emoji: "🥤", ex: "我想喝水。",            exp: "Wǒ xiǎng hē shuǐ.",                 exv: "Tôi muốn uống nước.", topic: "food" },
-  { id: 90, han: "饭",     pinyin: "fàn",          meaning: "cơm / bữa ăn",        pos: "Danh từ",   emoji: "🍚", ex: "你吃饭了吗？",          exp: "Nǐ chī fàn le ma?",                 exv: "Bạn ăn cơm chưa?", topic: "food" },
-  { id: 91, han: "水",     pinyin: "shuǐ",         meaning: "nước",                pos: "Danh từ",   emoji: "💧", ex: "请给我一杯水。",        exp: "Qǐng gěi wǒ yì bēi shuǐ.",          exv: "Xin cho tôi một cốc nước.", topic: "food" },
-  { id: 92, han: "茶",     pinyin: "chá",          meaning: "trà",                 pos: "Danh từ",   emoji: "🍵", ex: "请喝茶。",              exp: "Qǐng hē chá.",                      exv: "Mời uống trà.", topic: "food" },
-  { id: 93, han: "苹果",   pinyin: "píng guǒ",     meaning: "quả táo",             pos: "Danh từ",   emoji: "🍎", ex: "苹果很好吃。",          exp: "Píngguǒ hěn hǎo chī.",              exv: "Táo rất ngon.", topic: "food" },
-  { id: 94, han: "鸡蛋",   pinyin: "jī dàn",       meaning: "trứng gà",            pos: "Danh từ",   emoji: "🥚", ex: "早上我吃鸡蛋。",        exp: "Zǎoshang wǒ chī jīdàn.",            exv: "Buổi sáng tôi ăn trứng.", topic: "food" },
-  { id: 95, han: "牛奶",   pinyin: "niú nǎi",      meaning: "sữa bò",              pos: "Danh từ",   emoji: "🥛", ex: "我喜欢喝牛奶。",        exp: "Wǒ xǐhuan hē niúnǎi.",              exv: "Tôi thích uống sữa.", topic: "food" },
-  { id: 96, han: "米饭",   pinyin: "mǐ fàn",       meaning: "cơm (gạo)",           pos: "Danh từ",   emoji: "🍚", ex: "请来一碗米饭。",        exp: "Qǐng lái yì wǎn mǐfàn.",            exv: "Cho một bát cơm.", topic: "food" },
-  { id: 97, han: "菜",     pinyin: "cài",          meaning: "rau / món ăn",        pos: "Danh từ",   emoji: "🥬", ex: "这个菜很好吃。",        exp: "Zhè ge cài hěn hǎo chī.",           exv: "Món này rất ngon.", topic: "food" },
-  { id: 98, han: "鱼",     pinyin: "yú",           meaning: "cá",                  pos: "Danh từ",   emoji: "🐟", ex: "我不吃鱼。",            exp: "Wǒ bù chī yú.",                     exv: "Tôi không ăn cá.", topic: "food" },
-  { id: 99, han: "肉",     pinyin: "ròu",          meaning: "thịt",                pos: "Danh từ",   emoji: "🥩", ex: "他爱吃肉。",            exp: "Tā ài chī ròu.",                    exv: "Anh ấy thích ăn thịt.", topic: "food" },
+  { id: 88, han: "吃",     pinyin: "chī",          meaning: "ăn",                  pos: "Động từ",   emoji: "\u{1F37D}\uFE0F", ex: "我们吃饭吧。",         exp: "Wǒmen chī fàn ba.",                 exv: "Chúng ta ăn cơm đi.", topic: "food" },
+  { id: 89, han: "喝",     pinyin: "hē",           meaning: "uống",                pos: "Động từ",   emoji: "\u{1F964}", ex: "我想喝水。",            exp: "Wǒ xiǎng hē shuǐ.",                 exv: "Tôi muốn uống nước.", topic: "food" },
+  { id: 90, han: "饭",     pinyin: "fàn",          meaning: "cơm / bữa ăn",        pos: "Danh từ",   emoji: "\u{1F35A}", ex: "你吃饭了吗？",          exp: "Nǐ chī fàn le ma?",                 exv: "Bạn ăn cơm chưa?", topic: "food" },
+  { id: 91, han: "水",     pinyin: "shuǐ",         meaning: "nước",                pos: "Danh từ",   emoji: "\u{1F4A7}", ex: "请给我一杯水。",        exp: "Qǐng gěi wǒ yì bēi shuǐ.",          exv: "Xin cho tôi một cốc nước.", topic: "food" },
+  { id: 92, han: "茶",     pinyin: "chá",          meaning: "trà",                 pos: "Danh từ",   emoji: "\u{1F375}", ex: "请喝茶。",              exp: "Qǐng hē chá.",                      exv: "Mời uống trà.", topic: "food" },
+  { id: 93, han: "苹果",   pinyin: "píng guǒ",     meaning: "quả táo",             pos: "Danh từ",   emoji: "\u{1F34E}", ex: "苹果很好吃。",          exp: "Píngguǒ hěn hǎo chī.",              exv: "Táo rất ngon.", topic: "food" },
+  { id: 94, han: "鸡蛋",   pinyin: "jī dàn",       meaning: "trứng gà",            pos: "Danh từ",   emoji: "\u{1F95A}", ex: "早上我吃鸡蛋。",        exp: "Zǎoshang wǒ chī jīdàn.",            exv: "Buổi sáng tôi ăn trứng.", topic: "food" },
+  { id: 95, han: "牛奶",   pinyin: "niú nǎi",      meaning: "sữa bò",              pos: "Danh từ",   emoji: "\u{1F95B}", ex: "我喜欢喝牛奶。",        exp: "Wǒ xǐhuan hē niúnǎi.",              exv: "Tôi thích uống sữa.", topic: "food" },
+  { id: 96, han: "米饭",   pinyin: "mǐ fàn",       meaning: "cơm (gạo)",           pos: "Danh từ",   emoji: "\u{1F35A}", ex: "请来一碗米饭。",        exp: "Qǐng lái yì wǎn mǐfàn.",            exv: "Cho một bát cơm.", topic: "food" },
+  { id: 97, han: "菜",     pinyin: "cài",          meaning: "rau / món ăn",        pos: "Danh từ",   emoji: "\u{1F96C}", ex: "这个菜很好吃。",        exp: "Zhè ge cài hěn hǎo chī.",           exv: "Món này rất ngon.", topic: "food" },
+  { id: 98, han: "鱼",     pinyin: "yú",           meaning: "cá",                  pos: "Danh từ",   emoji: "\u{1F41F}", ex: "我不吃鱼。",            exp: "Wǒ bù chī yú.",                     exv: "Tôi không ăn cá.", topic: "food" },
+  { id: 99, han: "肉",     pinyin: "ròu",          meaning: "thịt",                pos: "Danh từ",   emoji: "\u{1F969}", ex: "他爱吃肉。",            exp: "Tā ài chī ròu.",                    exv: "Anh ấy thích ăn thịt.", topic: "food" },
 
-  // CƠ THỂ (5)
-  { id: 100, han: "头",    pinyin: "tóu",          meaning: "đầu",                 pos: "Danh từ",   emoji: "🗣️", ex: "我头疼。",              exp: "Wǒ tóu téng.",                      exv: "Tôi đau đầu.", topic: "body" },
-  { id: 101, han: "手",    pinyin: "shǒu",         meaning: "tay",                 pos: "Danh từ",   emoji: "✋", ex: "他的手很大。",          exp: "Tā de shǒu hěn dà.",                exv: "Tay anh ấy rất to.", topic: "body" },
-  { id: 102, han: "脚",    pinyin: "jiǎo",         meaning: "chân / bàn chân",     pos: "Danh từ",   emoji: "🦶", ex: "我的脚很冷。",          exp: "Wǒ de jiǎo hěn lěng.",              exv: "Chân tôi rất lạnh.", topic: "body" },
-  { id: 103, han: "眼睛",  pinyin: "yǎn jing",     meaning: "mắt",                 pos: "Danh từ",   emoji: "👁️", ex: "她的眼睛很大。",       exp: "Tā de yǎnjing hěn dà.",             exv: "Mắt cô ấy rất to.", topic: "body" },
-  { id: 104, han: "嘴",    pinyin: "zuǐ",          meaning: "miệng",               pos: "Danh từ",   emoji: "👄", ex: "他的嘴很小。",          exp: "Tā de zuǐ hěn xiǎo.",               exv: "Miệng anh ấy rất nhỏ.", topic: "body" },
+  { id: 100, han: "头",    pinyin: "tóu",          meaning: "đầu",                 pos: "Danh từ",   emoji: "\u{1F5E3}\uFE0F", ex: "我头疼。",             exp: "Wǒ tóu téng.",                      exv: "Tôi đau đầu.", topic: "body" },
+  { id: 101, han: "手",    pinyin: "shǒu",         meaning: "tay",                 pos: "Danh từ",   emoji: "\u{270B}", ex: "他的手很大。",          exp: "Tā de shǒu hěn dà.",                exv: "Tay anh ấy rất to.", topic: "body" },
+  { id: 102, han: "脚",    pinyin: "jiǎo",         meaning: "chân / bàn chân",     pos: "Danh từ",   emoji: "\u{1F9B6}", ex: "我的脚很冷。",          exp: "Wǒ de jiǎo hěn lěng.",              exv: "Chân tôi rất lạnh.", topic: "body" },
+  { id: 103, han: "眼睛",  pinyin: "yǎn jing",     meaning: "mắt",                 pos: "Danh từ",   emoji: "\u{1F441}\uFE0F", ex: "她的眼睛很大。",       exp: "Tā de yǎnjing hěn dà.",             exv: "Mắt cô ấy rất to.", topic: "body" },
+  { id: 104, han: "嘴",    pinyin: "zuǐ",          meaning: "miệng",               pos: "Danh từ",   emoji: "\u{1F444}", ex: "他的嘴很小。",          exp: "Tā de zuǐ hěn xiǎo.",               exv: "Miệng anh ấy rất nhỏ.", topic: "body" },
 
-  // ĐỘNG TỪ (24)
-  { id: 105, han: "看",    pinyin: "kàn",          meaning: "xem / nhìn",          pos: "Động từ",   emoji: "👀", ex: "我在看书。",            exp: "Wǒ zài kàn shū.",                   exv: "Tôi đang đọc sách.", topic: "verbs" },
-  { id: 106, han: "听",    pinyin: "tīng",         meaning: "nghe",                pos: "Động từ",   emoji: "👂", ex: "请听我说。",            exp: "Qǐng tīng wǒ shuō.",                exv: "Xin hãy nghe tôi nói.", topic: "verbs" },
-  { id: 107, han: "说",    pinyin: "shuō",         meaning: "nói",                 pos: "Động từ",   emoji: "💬", ex: "你会说汉语吗？",        exp: "Nǐ huì shuō Hànyǔ ma?",             exv: "Bạn nói được tiếng Trung không?", topic: "verbs" },
-  { id: 108, han: "写",    pinyin: "xiě",          meaning: "viết",                pos: "Động từ",   emoji: "✍️", ex: "请写你的名字。",        exp: "Qǐng xiě nǐ de míngzi.",            exv: "Xin viết tên của bạn.", topic: "verbs" },
-  { id: 109, han: "读",    pinyin: "dú",           meaning: "đọc",                 pos: "Động từ",   emoji: "📖", ex: "请大声读。",            exp: "Qǐng dàshēng dú.",                  exv: "Xin đọc to.", topic: "verbs" },
-  { id: 110, han: "做",    pinyin: "zuò",          meaning: "làm",                 pos: "Động từ",   emoji: "🛠️", ex: "你在做什么？",         exp: "Nǐ zài zuò shénme?",                exv: "Bạn đang làm gì?", topic: "verbs" },
-  { id: 111, han: "来",    pinyin: "lái",          meaning: "đến",                 pos: "Động từ",   emoji: "🚶", ex: "他来了。",              exp: "Tā lái le.",                        exv: "Anh ấy đã đến.", topic: "verbs" },
-  { id: 112, han: "去",    pinyin: "qù",           meaning: "đi",                  pos: "Động từ",   emoji: "🏃", ex: "我去学校。",            exp: "Wǒ qù xuéxiào.",                    exv: "Tôi đi đến trường.", topic: "verbs" },
-  { id: 113, han: "坐",    pinyin: "zuò",          meaning: "ngồi",                pos: "Động từ",   emoji: "🪑", ex: "请坐。",                exp: "Qǐng zuò.",                         exv: "Xin ngồi.", topic: "verbs" },
-  { id: 114, han: "站",    pinyin: "zhàn",         meaning: "đứng",                pos: "Động từ",   emoji: "🧍", ex: "请站起来。",            exp: "Qǐng zhàn qǐlái.",                  exv: "Xin đứng lên.", topic: "verbs" },
-  { id: 115, han: "走",    pinyin: "zǒu",          meaning: "đi bộ",               pos: "Động từ",   emoji: "🚶‍♂️", ex: "我们走吧。",        exp: "Wǒmen zǒu ba.",                     exv: "Chúng ta đi thôi.", topic: "verbs" },
-  { id: 116, han: "住",    pinyin: "zhù",          meaning: "sống / ở",            pos: "Động từ",   emoji: "🏘️", ex: "你住在哪儿？",         exp: "Nǐ zhù zài nǎr?",                   exv: "Bạn sống ở đâu?", topic: "verbs" },
-  { id: 117, han: "喜欢",  pinyin: "xǐ huan",      meaning: "thích",               pos: "Động từ",   emoji: "❤️", ex: "我喜欢唱歌。",          exp: "Wǒ xǐhuan chàng gē.",               exv: "Tôi thích hát.", topic: "verbs" },
-  { id: 118, han: "想",    pinyin: "xiǎng",        meaning: "muốn / nghĩ",         pos: "Động từ",   emoji: "💭", ex: "我想去中国。",          exp: "Wǒ xiǎng qù Zhōngguó.",             exv: "Tôi muốn đi Trung Quốc.", topic: "verbs" },
-  { id: 119, han: "爱",    pinyin: "ài",           meaning: "yêu",                 pos: "Động từ",   emoji: "💖", ex: "我爱我的家。",          exp: "Wǒ ài wǒ de jiā.",                  exv: "Tôi yêu gia đình tôi.", topic: "verbs" },
-  { id: 120, han: "买",    pinyin: "mǎi",          meaning: "mua",                 pos: "Động từ",   emoji: "🛒", ex: "我要买水果。",          exp: "Wǒ yào mǎi shuǐguǒ.",               exv: "Tôi muốn mua trái cây.", topic: "verbs" },
-  { id: 121, han: "卖",    pinyin: "mài",          meaning: "bán",                 pos: "Động từ",   emoji: "🏷️", ex: "他在卖衣服。",         exp: "Tā zài mài yīfu.",                  exv: "Anh ấy đang bán quần áo.", topic: "verbs" },
-  { id: 122, han: "工作",  pinyin: "gōng zuò",     meaning: "công việc / làm việc", pos: "Động từ",  emoji: "💼", ex: "他在哪儿工作？",        exp: "Tā zài nǎr gōngzuò?",               exv: "Anh ấy làm việc ở đâu?", topic: "verbs" },
-  { id: 123, han: "学习",  pinyin: "xué xí",       meaning: "học tập",             pos: "Động từ",   emoji: "🎓", ex: "我们一起学习。",        exp: "Wǒmen yìqǐ xuéxí.",                 exv: "Chúng ta cùng nhau học.", topic: "verbs" },
-  { id: 124, han: "教",    pinyin: "jiāo",         meaning: "dạy",                 pos: "Động từ",   emoji: "👨‍🏫", ex: "他教我们汉语。",    exp: "Tā jiāo wǒmen Hànyǔ.",              exv: "Anh ấy dạy chúng tôi tiếng Trung.", topic: "verbs" },
-  { id: 125, han: "认识",  pinyin: "rèn shi",      meaning: "biết / quen",         pos: "Động từ",   emoji: "🤝", ex: "我认识他。",            exp: "Wǒ rènshi tā.",                     exv: "Tôi quen anh ấy.", topic: "verbs" },
-  { id: 126, han: "知道",  pinyin: "zhī dào",      meaning: "biết / hay biết",     pos: "Động từ",   emoji: "💡", ex: "我知道这件事。",        exp: "Wǒ zhīdào zhè jiàn shì.",           exv: "Tôi biết chuyện này.", topic: "verbs" },
-  { id: 127, han: "会",    pinyin: "huì",          meaning: "biết (kỹ năng) / sẽ", pos: "Động từ",   emoji: "✨", ex: "我会说汉语。",          exp: "Wǒ huì shuō Hànyǔ.",                exv: "Tôi biết nói tiếng Trung.", topic: "verbs" },
-  { id: 128, han: "能",    pinyin: "néng",         meaning: "có thể",              pos: "Động từ",   emoji: "💪", ex: "你能帮我吗？",          exp: "Nǐ néng bāng wǒ ma?",               exv: "Bạn có thể giúp tôi không?", topic: "verbs" },
+  { id: 105, han: "看",    pinyin: "kàn",          meaning: "xem / nhìn",          pos: "Động từ",   emoji: "\u{1F440}", ex: "我在看书。",            exp: "Wǒ zài kàn shū.",                   exv: "Tôi đang đọc sách.", topic: "verbs" },
+  { id: 106, han: "听",    pinyin: "tīng",         meaning: "nghe",                pos: "Động từ",   emoji: "\u{1F442}", ex: "请听我说。",            exp: "Qǐng tīng wǒ shuō.",                exv: "Xin hãy nghe tôi nói.", topic: "verbs" },
+  { id: 107, han: "说",    pinyin: "shuō",         meaning: "nói",                 pos: "Động từ",   emoji: "\u{1F4AC}", ex: "你会说汉语吗？",        exp: "Nǐ huì shuō Hànyǔ ma?",             exv: "Bạn nói được tiếng Trung không?", topic: "verbs" },
+  { id: 108, han: "写",    pinyin: "xiě",          meaning: "viết",                pos: "Động từ",   emoji: "\u{270D}\uFE0F", ex: "请写你的名字。",       exp: "Qǐng xiě nǐ de míngzi.",            exv: "Xin viết tên của bạn.", topic: "verbs" },
+  { id: 109, han: "读",    pinyin: "dú",           meaning: "đọc",                 pos: "Động từ",   emoji: "\u{1F4D6}", ex: "请大声读。",            exp: "Qǐng dàshēng dú.",                  exv: "Xin đọc to.", topic: "verbs" },
+  { id: 110, han: "做",    pinyin: "zuò",          meaning: "làm",                 pos: "Động từ",   emoji: "\u{1F6E0}\uFE0F", ex: "你在做什么？",         exp: "Nǐ zài zuò shénme?",                exv: "Bạn đang làm gì?", topic: "verbs" },
+  { id: 111, han: "来",    pinyin: "lái",          meaning: "đến",                 pos: "Động từ",   emoji: "\u{1F6B6}", ex: "他来了。",              exp: "Tā lái le.",                        exv: "Anh ấy đã đến.", topic: "verbs" },
+  { id: 112, han: "去",    pinyin: "qù",           meaning: "đi",                  pos: "Động từ",   emoji: "\u{1F3C3}", ex: "我去学校。",            exp: "Wǒ qù xuéxiào.",                    exv: "Tôi đi đến trường.", topic: "verbs" },
+  { id: 113, han: "坐",    pinyin: "zuò",          meaning: "ngồi",                pos: "Động từ",   emoji: "\u{1FA91}", ex: "请坐。",                exp: "Qǐng zuò.",                         exv: "Xin ngồi.", topic: "verbs" },
+  { id: 114, han: "站",    pinyin: "zhàn",         meaning: "đứng",                pos: "Động từ",   emoji: "\u{1F9CD}", ex: "请站起来。",            exp: "Qǐng zhàn qǐlái.",                  exv: "Xin đứng lên.", topic: "verbs" },
+  { id: 115, han: "走",    pinyin: "zǒu",          meaning: "đi bộ",               pos: "Động từ",   emoji: "\u{1F6B6}\u200D}\u2642\uFE0F", ex: "我们走吧。",          exp: "Wǒmen zǒu ba.",                     exv: "Chúng ta đi thôi.", topic: "verbs" },
+  { id: 116, han: "住",    pinyin: "zhù",          meaning: "sống / ở",            pos: "Động từ",   emoji: "\u{1F3D8}\uFE0F", ex: "你住在哪儿？",         exp: "Nǐ zhù zài nǎr?",                   exv: "Bạn sống ở đâu?", topic: "verbs" },
+  { id: 117, han: "喜欢",  pinyin: "xǐ huan",      meaning: "thích",               pos: "Động từ",   emoji: "\u{2764}\uFE0F", ex: "我喜欢唱歌。",         exp: "Wǒ xǐhuan chàng gē.",               exv: "Tôi thích hát.", topic: "verbs" },
+  { id: 118, han: "想",    pinyin: "xiǎng",        meaning: "muốn / nghĩ",         pos: "Động từ",   emoji: "\u{1F4AD}", ex: "我想去中国。",          exp: "Wǒ xiǎng qù Zhōngguó.",             exv: "Tôi muốn đi Trung Quốc.", topic: "verbs" },
+  { id: 119, han: "爱",    pinyin: "ài",           meaning: "yêu",                 pos: "Động từ",   emoji: "\u{1F496}", ex: "我爱我的家。",          exp: "Wǒ ài wǒ de jiā.",                  exv: "Tôi yêu gia đình tôi.", topic: "verbs" },
+  { id: 120, han: "买",    pinyin: "mǎi",          meaning: "mua",                 pos: "Động từ",   emoji: "\u{1F6D2}", ex: "我要买水果。",          exp: "Wǒ yào mǎi shuǐguǒ.",               exv: "Tôi muốn mua trái cây.", topic: "verbs" },
+  { id: 121, han: "卖",    pinyin: "mài",          meaning: "bán",                 pos: "Động từ",   emoji: "\u{1F3F7}\uFE0F", ex: "他在卖衣服。",         exp: "Tā zài mài yīfu.",                  exv: "Anh ấy đang bán quần áo.", topic: "verbs" },
+  { id: 122, han: "工作",  pinyin: "gōng zuò",     meaning: "công việc / làm việc", pos: "Động từ",  emoji: "\u{1F4BC}", ex: "他在哪儿工作？",        exp: "Tā zài nǎr gōngzuò?",               exv: "Anh ấy làm việc ở đâu?", topic: "verbs" },
+  { id: 123, han: "学习",  pinyin: "xué xí",       meaning: "học tập",             pos: "Động từ",   emoji: "\u{1F393}", ex: "我们一起学习。",        exp: "Wǒmen yìqǐ xuéxí.",                 exv: "Chúng ta cùng nhau học.", topic: "verbs" },
+  { id: 124, han: "教",    pinyin: "jiāo",         meaning: "dạy",                 pos: "Động từ",   emoji: "\u{1F468}\u200D}\u{1F3EB}", ex: "他教我们汉语。",    exp: "Tā jiāo wǒmen Hànyǔ.",              exv: "Anh ấy dạy chúng tôi tiếng Trung.", topic: "verbs" },
+  { id: 125, han: "认识",  pinyin: "rèn shi",      meaning: "biết / quen",         pos: "Động từ",   emoji: "\u{1F91D}", ex: "我认识他。",            exp: "Wǒ rènshi tā.",                     exv: "Tôi quen anh ấy.", topic: "verbs" },
+  { id: 126, han: "知道",  pinyin: "zhī dào",      meaning: "biết / hay biết",     pos: "Động từ",   emoji: "\u{1F4A1}", ex: "我知道这件事。",        exp: "Wǒ zhīdào zhè jiàn shì.",           exv: "Tôi biết chuyện này.", topic: "verbs" },
+  { id: 127, han: "会",    pinyin: "huì",          meaning: "biết (kỹ năng) / sẽ", pos: "Động từ",   emoji: "\u{2728}", ex: "我会说汉语。",          exp: "Wǒ huì shuō Hànyǔ.",                exv: "Tôi biết nói tiếng Trung.", topic: "verbs" },
+  { id: 128, han: "能",    pinyin: "néng",         meaning: "có thể",              pos: "Động từ",   emoji: "\u{1F4AA}", ex: "你能帮我吗？",          exp: "Nǐ néng bāng wǒ ma?",               exv: "Bạn có thể giúp tôi không?", topic: "verbs" },
 
-  // TÍNH TỪ (16)
-  { id: 129, han: "好",    pinyin: "hǎo",          meaning: "tốt",                 pos: "Tính từ",   emoji: "👍", ex: "这个很好。",            exp: "Zhège hěn hǎo.",                    exv: "Cái này rất tốt.", topic: "adjectives" },
-  { id: 130, han: "坏",    pinyin: "huài",         meaning: "xấu / hỏng",          pos: "Tính từ",   emoji: "👎", ex: "电视坏了。",            exp: "Diànshì huài le.",                  exv: "Tivi hỏng rồi.", topic: "adjectives" },
-  { id: 131, han: "大",    pinyin: "dà",           meaning: "to / lớn",            pos: "Tính từ",   emoji: "🐘", ex: "这个房间很大。",        exp: "Zhège fángjiān hěn dà.",            exv: "Phòng này rất lớn.", topic: "adjectives" },
-  { id: 132, han: "小",    pinyin: "xiǎo",         meaning: "nhỏ",                 pos: "Tính từ",   emoji: "🐜", ex: "我的狗很小。",          exp: "Wǒ de gǒu hěn xiǎo.",               exv: "Chó của tôi rất nhỏ.", topic: "adjectives" },
-  { id: 133, han: "多",    pinyin: "duō",          meaning: "nhiều",               pos: "Tính từ",   emoji: "📈", ex: "很多人来了。",          exp: "Hěn duō rén lái le.",               exv: "Rất nhiều người đã đến.", topic: "adjectives" },
-  { id: 134, han: "少",    pinyin: "shǎo",         meaning: "ít",                  pos: "Tính từ",   emoji: "📉", ex: "钱不多了。",            exp: "Qián bù duō le.",                   exv: "Tiền không còn nhiều.", topic: "adjectives" },
-  { id: 135, han: "高",    pinyin: "gāo",          meaning: "cao",                 pos: "Tính từ",   emoji: "📏", ex: "他很高。",              exp: "Tā hěn gāo.",                       exv: "Anh ấy rất cao.", topic: "adjectives" },
-  { id: 136, han: "热",    pinyin: "rè",           meaning: "nóng",                pos: "Tính từ",   emoji: "🥵", ex: "今天很热。",            exp: "Jīntiān hěn rè.",                   exv: "Hôm nay rất nóng.", topic: "adjectives" },
-  { id: 137, han: "冷",    pinyin: "lěng",         meaning: "lạnh",                pos: "Tính từ",   emoji: "🥶", ex: "冬天很冷。",            exp: "Dōngtiān hěn lěng.",                exv: "Mùa đông rất lạnh.", topic: "adjectives" },
-  { id: 138, han: "新",    pinyin: "xīn",          meaning: "mới",                 pos: "Tính từ",   emoji: "🆕", ex: "这是新衣服。",          exp: "Zhè shì xīn yīfu.",                 exv: "Đây là quần áo mới.", topic: "adjectives" },
-  { id: 139, han: "旧",    pinyin: "jiù",          meaning: "cũ",                  pos: "Tính từ",   emoji: "📜", ex: "这是一本旧书。",        exp: "Zhè shì yì běn jiù shū.",           exv: "Đây là một quyển sách cũ.", topic: "adjectives" },
-  { id: 140, han: "漂亮",  pinyin: "piào liang",   meaning: "đẹp",                 pos: "Tính từ",   emoji: "🌹", ex: "她很漂亮。",            exp: "Tā hěn piàoliang.",                 exv: "Cô ấy rất đẹp.", topic: "adjectives" },
-  { id: 141, han: "贵",    pinyin: "guì",          meaning: "đắt",                 pos: "Tính từ",   emoji: "💎", ex: "这个太贵了。",          exp: "Zhège tài guì le.",                 exv: "Cái này quá đắt.", topic: "adjectives" },
-  { id: 142, han: "便宜",  pinyin: "pián yi",      meaning: "rẻ",                  pos: "Tính từ",   emoji: "🪙", ex: "这个很便宜。",          exp: "Zhège hěn piányi.",                 exv: "Cái này rất rẻ.", topic: "adjectives" },
-  { id: 143, han: "快",    pinyin: "kuài",         meaning: "nhanh",               pos: "Tính từ",   emoji: "⚡", ex: "他跑得很快。",          exp: "Tā pǎo de hěn kuài.",               exv: "Anh ấy chạy rất nhanh.", topic: "adjectives" },
-  { id: 144, han: "慢",    pinyin: "màn",          meaning: "chậm",                pos: "Tính từ",   emoji: "🐌", ex: "请慢走。",              exp: "Qǐng màn zǒu.",                     exv: "Xin đi từ từ.", topic: "adjectives" },
+  { id: 129, han: "好",    pinyin: "hǎo",          meaning: "tốt",                 pos: "Tính từ",   emoji: "\u{1F44D}", ex: "这个很好。",            exp: "Zhège hěn hǎo.",                    exv: "Cái này rất tốt.", topic: "adjectives" },
+  { id: 130, han: "坏",    pinyin: "huài",         meaning: "xấu / hỏng",          pos: "Tính từ",   emoji: "\u{1F44E}", ex: "电视坏了。",            exp: "Diànshì huài le.",                  exv: "Tivi hỏng rồi.", topic: "adjectives" },
+  { id: 131, han: "大",    pinyin: "dà",           meaning: "to / lớn",            pos: "Tính từ",   emoji: "\u{1F418}", ex: "这个房间很大。",        exp: "Zhège fángjiān hěn dà.",            exv: "Phòng này rất lớn.", topic: "adjectives" },
+  { id: 132, han: "小",    pinyin: "xiǎo",         meaning: "nhỏ",                 pos: "Tính từ",   emoji: "\u{1F41C}", ex: "我的狗很小。",          exp: "Wǒ de gǒu hěn xiǎo.",               exv: "Chó của tôi rất nhỏ.", topic: "adjectives" },
+  { id: 133, han: "多",    pinyin: "duō",          meaning: "nhiều",               pos: "Tính từ",   emoji: "\u{1F4C8}", ex: "很多人来了。",          exp: "Hěn duō rén lái le.",               exv: "Rất nhiều người đã đến.", topic: "adjectives" },
+  { id: 134, han: "少",    pinyin: "shǎo",         meaning: "ít",                  pos: "Tính từ",   emoji: "\u{1F4C9}", ex: "钱不多了。",            exp: "Qián bù duō le.",                   exv: "Tiền không còn nhiều.", topic: "adjectives" },
+  { id: 135, han: "高",    pinyin: "gāo",          meaning: "cao",                 pos: "Tính từ",   emoji: "\u{1F4CF}", ex: "他很高。",              exp: "Tā hěn gāo.",                       exv: "Anh ấy rất cao.", topic: "adjectives" },
+  { id: 136, han: "热",    pinyin: "rè",           meaning: "nóng",                pos: "Tính từ",   emoji: "\u{1F975}", ex: "今天很热。",            exp: "Jīntiān hěn rè.",                   exv: "Hôm nay rất nóng.", topic: "adjectives" },
+  { id: 137, han: "冷",    pinyin: "lěng",         meaning: "lạnh",                pos: "Tính từ",   emoji: "\u{1F976}", ex: "冬天很冷。",            exp: "Dōngtiān hěn lěng.",                exv: "Mùa đông rất lạnh.", topic: "adjectives" },
+  { id: 138, han: "新",    pinyin: "xīn",          meaning: "mới",                 pos: "Tính từ",   emoji: "\u{1F195}", ex: "这是新衣服。",          exp: "Zhè shì xīn yīfu.",                 exv: "Đây là quần áo mới.", topic: "adjectives" },
+  { id: 139, han: "旧",    pinyin: "jiù",          meaning: "cũ",                  pos: "Tính từ",   emoji: "\u{1F4DC}", ex: "这是一本旧书。",        exp: "Zhè shì yì běn jiù shū.",           exv: "Đây là một quyển sách cũ.", topic: "adjectives" },
+  { id: 140, han: "漂亮",  pinyin: "piào liang",   meaning: "đẹp",                 pos: "Tính từ",   emoji: "\u{1F339}", ex: "她很漂亮。",            exp: "Tā hěn piàoliang.",                 exv: "Cô ấy rất đẹp.", topic: "adjectives" },
+  { id: 141, han: "贵",    pinyin: "guì",          meaning: "đắt",                 pos: "Tính từ",   emoji: "\u{1F48E}", ex: "这个太贵了。",          exp: "Zhège tài guì le.",                 exv: "Cái này quá đắt.", topic: "adjectives" },
+  { id: 142, han: "便宜",  pinyin: "pián yi",      meaning: "rẻ",                  pos: "Tính từ",   emoji: "\u{1FA99}", ex: "这个很便宜。",          exp: "Zhège hěn piányi.",                 exv: "Cái này rất rẻ.", topic: "adjectives" },
+  { id: 143, han: "快",    pinyin: "kuài",         meaning: "nhanh",               pos: "Tính từ",   emoji: "\u{26A1}", ex: "他跑得很快。",          exp: "Tā pǎo de hěn kuài.",               exv: "Anh ấy chạy rất nhanh.", topic: "adjectives" },
+  { id: 144, han: "慢",    pinyin: "màn",          meaning: "chậm",                pos: "Tính từ",   emoji: "\u{1F40C}", ex: "请慢走。",              exp: "Qǐng màn zǒu.",                     exv: "Xin đi từ từ.", topic: "adjectives" },
 
-  // NƠI CHỐN (6)
-  { id: 145, han: "学校",  pinyin: "xué xiào",     meaning: "trường học",          pos: "Danh từ",   emoji: "🏫", ex: "我们的学校很大。",      exp: "Wǒmen de xuéxiào hěn dà.",          exv: "Trường của chúng tôi rất lớn.", topic: "places" },
-  { id: 146, han: "医院",  pinyin: "yī yuàn",      meaning: "bệnh viện",           pos: "Danh từ",   emoji: "🏥", ex: "他在医院工作。",        exp: "Tā zài yīyuàn gōngzuò.",            exv: "Anh ấy làm việc ở bệnh viện.", topic: "places" },
-  { id: 147, han: "商店",  pinyin: "shāng diàn",   meaning: "cửa hàng",            pos: "Danh từ",   emoji: "🏬", ex: "我去商店买东西。",      exp: "Wǒ qù shāngdiàn mǎi dōngxi.",       exv: "Tôi đi cửa hàng mua đồ.", topic: "places" },
-  { id: 148, han: "饭店",  pinyin: "fàn diàn",     meaning: "nhà hàng",            pos: "Danh từ",   emoji: "🏨", ex: "这家饭店很好。",        exp: "Zhè jiā fàndiàn hěn hǎo.",          exv: "Nhà hàng này rất tốt.", topic: "places" },
-  { id: 149, han: "房间",  pinyin: "fáng jiān",    meaning: "phòng",               pos: "Danh từ",   emoji: "🚪", ex: "我的房间很干净。",      exp: "Wǒ de fángjiān hěn gānjìng.",       exv: "Phòng của tôi rất sạch.", topic: "places" },
-  { id: 150, han: "里",    pinyin: "lǐ",           meaning: "trong / bên trong",   pos: "Danh từ",   emoji: "📥", ex: "杯子里有水。",          exp: "Bēizi lǐ yǒu shuǐ.",                exv: "Trong cốc có nước.", topic: "places" },
+  { id: 145, han: "学校",  pinyin: "xué xiào",     meaning: "trường học",          pos: "Danh từ",   emoji: "\u{1F3EB}", ex: "我们的学校很大。",      exp: "Wǒmen de xuéxiào hěn dà.",          exv: "Trường của chúng tôi rất lớn.", topic: "places" },
+  { id: 146, han: "医院",  pinyin: "yī yuàn",      meaning: "bệnh viện",           pos: "Danh từ",   emoji: "\u{1F3E5}", ex: "他在医院工作。",        exp: "Tā zài yīyuàn gōngzuò.",            exv: "Anh ấy làm việc ở bệnh viện.", topic: "places" },
+  { id: 147, han: "商店",  pinyin: "shāng diàn",   meaning: "cửa hàng",            pos: "Danh từ",   emoji: "\u{1F3EC}", ex: "我去商店买东西。",      exp: "Wǒ qù shāngdiàn mǎi dōngxi.",       exv: "Tôi đi cửa hàng mua đồ.", topic: "places" },
+  { id: 148, han: "饭店",  pinyin: "fàn diàn",     meaning: "nhà hàng",            pos: "Danh từ",   emoji: "\u{1F3E8}", ex: "这家饭店很好。",        exp: "Zhè jiā fàndiàn hěn hǎo.",          exv: "Nhà hàng này rất tốt.", topic: "places" },
+  { id: 149, han: "房间",  pinyin: "fáng jiān",    meaning: "phòng",               pos: "Danh từ",   emoji: "\u{1F6AA}", ex: "我的房间很干净。",      exp: "Wǒ de fángjiān hěn gānjìng.",       exv: "Phòng của tôi rất sạch.", topic: "places" },
+  { id: 150, han: "里",    pinyin: "lǐ",           meaning: "trong / bên trong",   pos: "Danh từ",   emoji: "\u{1F4E5}", ex: "杯子里有水。",          exp: "Bēizi lǐ yǒu shuǐ.",                exv: "Trong cốc có nước.", topic: "places" },
 ];
 
 const getTopic = (id) => TOPICS.find(t => t.id === id);
@@ -255,7 +246,7 @@ function loadProgress() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return defaultProgress();
     return { ...defaultProgress(), ...JSON.parse(raw) };
-  } catch { return defaultProgress(); }
+  } catch (e) { return defaultProgress(); }
 }
 
 function saveProgress(p) {
@@ -266,8 +257,11 @@ function newCard(wordId) {
   return { wordId, repetitions: 0, interval: 0, easeFactor: 2.5, dueDate: Date.now(), lastReviewed: null, history: [] };
 }
 
-function reviewCard(card, grade, now = Date.now()) {
-  let { repetitions, interval, easeFactor } = card;
+function reviewCard(card, grade, now) {
+  now = now || Date.now();
+  let repetitions = card.repetitions;
+  let interval = card.interval;
+  let easeFactor = card.easeFactor;
   const newEase = Math.max(1.3, easeFactor + (0.1 - (5 - grade) * (0.08 + (5 - grade) * 0.02)));
   if (grade < 3) {
     repetitions = 0; interval = 1;
@@ -277,12 +271,17 @@ function reviewCard(card, grade, now = Date.now()) {
     else if (repetitions === 2) interval = 3;
     else interval = Math.round(interval * newEase);
   }
-  return { ...card, repetitions, interval, easeFactor: newEase, dueDate: now + interval * DAY_MS, lastReviewed: now, history: [...card.history, { date: now, grade }] };
+  return Object.assign({}, card, {
+    repetitions, interval, easeFactor: newEase,
+    dueDate: now + interval * DAY_MS,
+    lastReviewed: now,
+    history: card.history.concat([{ date: now, grade }]),
+  });
 }
 
 function getDueCards(progress, allWordIds) {
   const now = Date.now();
-  return allWordIds.filter(wordId => {
+  return allWordIds.filter(function(wordId) {
     const card = progress.cards[wordId];
     return !card || card.dueDate <= now;
   });
@@ -290,15 +289,16 @@ function getDueCards(progress, allWordIds) {
 
 function gradeWord(progress, wordId, grade) {
   const now = Date.now();
-  const existing = progress.cards[wordId] ?? newCard(wordId);
+  const existing = progress.cards[wordId] || newCard(wordId);
   const updated = reviewCard(existing, grade, now);
   const today = todayKey();
-  const dailyStats = { ...progress.dailyStats };
+  const dailyStats = Object.assign({}, progress.dailyStats);
   if (!dailyStats[today]) dailyStats[today] = { studied: 0, correct: 0 };
   dailyStats[today].studied += 1;
   if (grade >= 3) dailyStats[today].correct += 1;
   const lastDate = progress.streak.lastStudyDate;
-  let { current, longest } = progress.streak;
+  let current = progress.streak.current;
+  let longest = progress.streak.longest;
   if (lastDate !== today) {
     const y = new Date(now - DAY_MS);
     const yKey = `${y.getFullYear()}-${String(y.getMonth()+1).padStart(2,"0")}-${String(y.getDate()).padStart(2,"0")}`;
@@ -307,44 +307,43 @@ function gradeWord(progress, wordId, grade) {
   }
   const learnedSet = new Set(progress.learnedWordIds);
   if (grade >= 3) learnedSet.add(wordId);
-  return {
-    ...progress, cards: { ...progress.cards, [wordId]: updated },
+  return Object.assign({}, progress, {
+    cards: Object.assign({}, progress.cards, { [wordId]: updated }),
     learnedWordIds: Array.from(learnedSet),
     totalReviews: progress.totalReviews + 1,
     correctReviews: progress.correctReviews + (grade >= 3 ? 1 : 0),
     streak: { current, longest, lastStudyDate: today },
     dailyStats,
-  };
+  });
 }
 
 function markLearned(progress, wordId) {
   const s = new Set(progress.learnedWordIds);
   s.add(wordId);
-  return { ...progress, learnedWordIds: Array.from(s) };
+  return Object.assign({}, progress, { learnedWordIds: Array.from(s) });
 }
 
 // ==================== Hook: useProgress ====================
 function useProgress() {
   const [progress, setProgress] = useState(null);
   const [hydrated, setHydrated] = useState(false);
-  useEffect(() => {
+  useEffect(function() {
     setProgress(loadProgress());
     setHydrated(true);
   }, []);
-  const persist = useCallback((next) => { setProgress(next); saveProgress(next); }, []);
-  const grade = useCallback((wordId, g) => {
-    setProgress(p => { if (!p) return p; const next = gradeWord(p, wordId, g); saveProgress(next); return next; });
+  const grade = useCallback(function(wordId, g) {
+    setProgress(function(p) { if (!p) return p; const next = gradeWord(p, wordId, g); saveProgress(next); return next; });
   }, []);
-  const markLearnedWord = useCallback((wordId) => {
-    setProgress(p => { if (!p) return p; const next = markLearned(p, wordId); saveProgress(next); return next; });
+  const markLearnedWord = useCallback(function(wordId) {
+    setProgress(function(p) { if (!p) return p; const next = markLearned(p, wordId); saveProgress(next); return next; });
   }, []);
-  const recordQuizScore = useCallback((score) => {
-    setProgress(p => { if (!p) return p; const next = score > p.quizHighScore ? { ...p, quizHighScore: score } : p; saveProgress(next); return next; });
+  const recordQuizScore = useCallback(function(score) {
+    setProgress(function(p) { if (!p) return p; const next = score > p.quizHighScore ? Object.assign({}, p, { quizHighScore: score }) : p; saveProgress(next); return next; });
   }, []);
-  const recordMatchingScore = useCallback((score) => {
-    setProgress(p => { if (!p) return p; const next = score > p.matchingHighScore ? { ...p, matchingHighScore: score } : p; saveProgress(next); return next; });
+  const recordMatchingScore = useCallback(function(score) {
+    setProgress(function(p) { if (!p) return p; const next = score > p.matchingHighScore ? Object.assign({}, p, { matchingHighScore: score }) : p; saveProgress(next); return next; });
   }, []);
-  const reset = useCallback(() => {
+  const reset = useCallback(function() {
     const fresh = defaultProgress(); saveProgress(fresh); setProgress(fresh);
   }, []);
   return { progress, hydrated, grade, markLearnedWord, recordQuizScore, recordMatchingScore, reset };
@@ -352,10 +351,10 @@ function useProgress() {
 
 // ==================== Helpers ====================
 function shuffle(arr) {
-  const a = [...arr];
+  const a = arr.slice();
   for (let i = a.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
+    const tmp = a[i]; a[i] = a[j]; a[j] = tmp;
   }
   return a;
 }
@@ -365,53 +364,56 @@ function speak(text) {
   const u = new SpeechSynthesisUtterance(text);
   u.lang = "zh-CN"; u.rate = 0.9;
   const voices = window.speechSynthesis.getVoices();
-  const zh = voices.find(v => v.lang.startsWith("zh"));
+  const zh = voices.find(function(v) { return v.lang.startsWith("zh"); });
   if (zh) u.voice = zh;
   window.speechSynthesis.cancel();
   window.speechSynthesis.speak(u);
 }
 
 // ==================== Dashboard ====================
-function Dashboard({ progress, onTopicClick, onStartDue }) {
-  const allWordIds = useMemo(() => VOCAB.map(w => w.id), []);
-  const dueIds = useMemo(() => progress ? getDueCards(progress, allWordIds) : [], [progress, allWordIds]);
-  const learnedCount = progress?.learnedWordIds.length ?? 0;
+function Dashboard(props) {
+  const progress = props.progress;
+  const onTopicClick = props.onTopicClick;
+  const onStartDue = props.onStartDue;
+  const allWordIds = useMemo(function() { return VOCAB.map(function(w) { return w.id; }); }, []);
+  const dueIds = useMemo(function() { return progress ? getDueCards(progress, allWordIds) : []; }, [progress, allWordIds]);
+  const learnedCount = progress ? progress.learnedWordIds.length : 0;
   const completionPct = Math.round((learnedCount / TOTAL_WORDS) * 100);
   const accuracy = progress && progress.totalReviews > 0 ? Math.round((progress.correctReviews / progress.totalReviews) * 100) : 0;
 
-  const last7Days = useMemo(() => {
+  const last7Days = useMemo(function() {
     const days = [];
     const now = new Date();
     for (let i = 6; i >= 0; i--) {
       const d = new Date(now); d.setDate(now.getDate() - i);
       const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
-      const stat = progress?.dailyStats[key];
+      const stat = progress ? progress.dailyStats[key] : null;
       days.push({
         label: ["CN","T2","T3","T4","T5","T6","T7"][d.getDay()],
-        studied: stat?.studied ?? 0,
+        studied: stat ? stat.studied : 0,
       });
     }
     return days;
   }, [progress]);
 
-  const maxStudied = Math.max(...last7Days.map(d => d.studied), 1);
+  const maxStudied = Math.max.apply(null, last7Days.map(function(d) { return d.studied; }).concat([1]));
 
-  const StatCard = ({ icon, label, value, sub, gradient, iconBg }) => (
-    <div className={`p-4 md:p-5 rounded-2xl bg-gradient-to-br ${gradient} text-white shadow-sm`}>
-      <div className="flex items-start justify-between">
-        <div>
-          <div className="text-xs font-medium uppercase tracking-wider opacity-90">{label}</div>
-          <div className="text-3xl md:text-4xl font-bold mt-1">{value}</div>
-          {sub && <div className="text-xs opacity-80 mt-1">{sub}</div>}
+  function StatCard(p) {
+    return html`
+      <div className="p-4 md:p-5 rounded-2xl bg-gradient-to-br ${p.gradient} text-white shadow-sm">
+        <div className="flex items-start justify-between">
+          <div>
+            <div className="text-xs font-medium uppercase tracking-wider opacity-90">${p.label}</div>
+            <div className="text-3xl md:text-4xl font-bold mt-1">${p.value}</div>
+            ${p.sub ? html`<div className="text-xs opacity-80 mt-1">${p.sub}</div>` : null}
+          </div>
+          <div className="w-10 h-10 rounded-xl ${p.iconBg} flex items-center justify-center shrink-0">${p.icon}</div>
         </div>
-        <div className={`w-10 h-10 rounded-xl ${iconBg} flex items-center justify-center shrink-0`}>{icon}</div>
-      </div>
-    </div>
-  );
+      </div>`;
+  }
 
-  return (
+  return html`
     <div className="flex flex-col gap-6">
-      {/* Hero */}
       <div className="p-6 md:p-8 rounded-3xl bg-gradient-to-br from-violet-500 via-fuchsia-500 to-pink-500 text-white relative overflow-hidden shadow-lg">
         <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-white/10 blur-2xl"></div>
         <div className="absolute -bottom-10 -left-10 w-40 h-40 rounded-full bg-white/10 blur-2xl"></div>
@@ -422,120 +424,121 @@ function Dashboard({ progress, onTopicClick, onStartDue }) {
           </div>
           <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
             <div>
-              <div className="text-5xl md:text-6xl font-bold">{completionPct}%</div>
-              <div className="text-sm opacity-90 mt-1">Đã học <span className="font-bold">{learnedCount}</span> / {TOTAL_WORDS} từ vựng</div>
+              <div className="text-5xl md:text-6xl font-bold">${completionPct}%</div>
+              <div className="text-sm opacity-90 mt-1">Đã học <span className="font-bold">${learnedCount}</span> / ${TOTAL_WORDS} từ vựng</div>
             </div>
             <div className="w-full md:w-1/2">
               <div className="h-3 rounded-full bg-white/20 overflow-hidden">
-                <div className="h-full bg-white rounded-full transition-all" style={{width: `${completionPct}%`}}></div>
+                <div className="h-full bg-white rounded-full transition-all" style=${{width: completionPct + "%"}}></div>
               </div>
               <div className="flex justify-between text-xs mt-2 opacity-80">
-                <span>0</span><span>{TOTAL_WORDS} từ</span>
+                <span>0</span><span>${TOTAL_WORDS} từ</span>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-        <StatCard icon={<span className="text-xl">🔥</span>} iconBg="bg-orange-500/30" gradient="from-orange-400 to-red-400" label="Streak" value={progress?.streak.current ?? 0} sub={`Kỷ lục: ${progress?.streak.longest ?? 0} ngày`} />
-        <StatCard icon={<span className="text-xl">⚡</span>} iconBg="bg-yellow-500/30" gradient="from-amber-400 to-yellow-400" label="Cần ôn" value={dueIds.length} sub="từ đến hạn hôm nay" />
-        <StatCard icon={<span className="text-xl">📈</span>} iconBg="bg-emerald-500/30" gradient="from-emerald-400 to-teal-400" label="Độ chính xác" value={`${accuracy}%`} sub={`${progress?.totalReviews ?? 0} lần ôn`} />
-        <StatCard icon={<span className="text-xl">🏆</span>} iconBg="bg-violet-500/30" gradient="from-violet-400 to-fuchsia-400" label="Điểm cao" value={Math.max(progress?.quizHighScore ?? 0, progress?.matchingHighScore ?? 0)} sub="Quiz / Matching" />
+        <${StatCard} icon=${html`<span className="text-xl">🔥</span>`} iconBg="bg-orange-500/30" gradient="from-orange-400 to-red-400" label="Streak" value=${progress ? progress.streak.current : 0} sub=${"Kỷ lục: " + (progress ? progress.streak.longest : 0) + " ngày"} />
+        <${StatCard} icon=${html`<span className="text-xl">⚡</span>`} iconBg="bg-yellow-500/30" gradient="from-amber-400 to-yellow-400" label="Cần ôn" value=${dueIds.length} sub="từ đến hạn hôm nay" />
+        <${StatCard} icon=${html`<span className="text-xl">📈</span>`} iconBg="bg-emerald-500/30" gradient="from-emerald-400 to-teal-400" label="Độ chính xác" value=${accuracy + "%"} sub=${(progress ? progress.totalReviews : 0) + " lần ôn"} />
+        <${StatCard} icon=${html`<span className="text-xl">🏆</span>`} iconBg="bg-violet-500/30" gradient="from-violet-400 to-fuchsia-400" label="Điểm cao" value=${Math.max(progress ? progress.quizHighScore : 0, progress ? progress.matchingHighScore : 0)} sub="Quiz / Matching" />
       </div>
 
-      {/* Due card */}
-      {dueIds.length > 0 && (
-        <button onClick={onStartDue} className="w-full text-left">
+      ${dueIds.length > 0 ? html`
+        <button onClick=${onStartDue} className="w-full text-left">
           <div className="p-4 md:p-5 rounded-2xl border-2 border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 hover:shadow-md transition-shadow">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-xl bg-amber-400 flex items-center justify-center shrink-0 text-2xl">⏰</div>
               <div className="flex-1 min-w-0">
-                <div className="font-semibold text-foreground">Ôn tập theo SRS</div>
-                <div className="text-sm text-muted-foreground">Có <span className="font-bold text-amber-700">{dueIds.length}</span> từ cần ôn lại hôm nay</div>
+                <div className="font-semibold text-gray-900">Ôn tập theo SRS</div>
+                <div className="text-sm text-gray-600">Có <span className="font-bold text-amber-700">${dueIds.length}</span> từ cần ôn lại hôm nay</div>
               </div>
               <span className="px-3 py-1 rounded-full bg-amber-400 text-white text-sm font-medium">Ôn ngay →</span>
             </div>
           </div>
         </button>
-      )}
+      ` : null}
 
-      {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
         <div className="lg:col-span-2 p-5 rounded-2xl bg-white shadow-sm">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-foreground">📈 7 ngày qua</h3>
-            <span className="text-xs px-2 py-1 rounded-full bg-muted">{last7Days.reduce((s, d) => s + d.studied, 0)} từ</span>
+            <h3 className="font-semibold text-gray-900">📈 7 ngày qua</h3>
+            <span className="text-xs px-2 py-1 rounded-full bg-gray-100">${last7Days.reduce(function(s, d) { return s + d.studied; }, 0)} từ</span>
           </div>
           <div className="flex items-end justify-between gap-2 h-32">
-            {last7Days.map((d, i) => (
-              <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                <div className="text-xs font-medium text-muted-foreground">{d.studied > 0 ? d.studied : ""}</div>
-                <div className="w-full flex-1 flex items-end">
-                  <div className="w-full rounded-t-md bg-gradient-to-t from-violet-500 to-fuchsia-400 transition-all" style={{height: `${(d.studied / maxStudied) * 100}%`, minHeight: d.studied > 0 ? "8px" : "2px"}}></div>
-                </div>
-                <div className="text-xs text-muted-foreground">{d.label}</div>
-              </div>
-            ))}
+            ${last7Days.map(function(d, i) {
+              return html`
+                <div key=${i} className="flex-1 flex flex-col items-center gap-1">
+                  <div className="text-xs font-medium text-gray-500">${d.studied > 0 ? d.studied : ""}</div>
+                  <div className="w-full flex-1 flex items-end">
+                    <div className="w-full rounded-t-md bg-gradient-to-t from-violet-500 to-fuchsia-400 transition-all" style=${{height: (d.studied / maxStudied * 100) + "%", minHeight: d.studied > 0 ? "8px" : "2px"}}></div>
+                  </div>
+                  <div className="text-xs text-gray-500">${d.label}</div>
+                </div>`;
+            })}
           </div>
         </div>
 
         <div className="lg:col-span-3 p-5 rounded-2xl bg-white shadow-sm">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-foreground">📚 Chủ đề</h3>
-            <span className="text-xs px-2 py-1 rounded-full bg-muted">{TOPICS.length} chủ đề</span>
+            <h3 className="font-semibold text-gray-900">📚 Chủ đề</h3>
+            <span className="text-xs px-2 py-1 rounded-full bg-gray-100">${TOPICS.length} chủ đề</span>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-[260px] overflow-y-auto pr-1">
-            {TOPICS.map(topic => {
-              const words = VOCAB.filter(w => w.topic === topic.id);
-              const learned = words.filter(w => progress?.learnedWordIds.includes(w.id)).length;
+            ${TOPICS.map(function(topic) {
+              const words = VOCAB.filter(function(w) { return w.topic === topic.id; });
+              const learned = words.filter(function(w) { return progress ? progress.learnedWordIds.includes(w.id) : false; }).length;
               const pct = Math.round((learned / words.length) * 100);
-              return (
-                <button key={topic.id} onClick={() => onTopicClick(topic.id)} className={`text-left rounded-xl p-3 bg-gradient-to-br ${topic.color} text-white hover:scale-[1.02] transition-transform`}>
+              return html`
+                <button key=${topic.id} onClick=${function() { onTopicClick(topic.id); }} className="text-left rounded-xl p-3 bg-gradient-to-br ${topic.color} text-white hover:scale-[1.02] transition-transform">
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-lg">{topic.emoji}</span>
-                    <span className="text-xs font-medium opacity-90">{pct}%</span>
+                    <span className="text-lg">${topic.emoji}</span>
+                    <span className="text-xs font-medium opacity-90">${pct}%</span>
                   </div>
-                  <div className="font-semibold text-sm leading-tight">{topic.name}</div>
-                  <div className="text-xs opacity-90">{learned}/{words.length} từ</div>
+                  <div className="font-semibold text-sm leading-tight">${topic.name}</div>
+                  <div className="text-xs opacity-90">${learned}/${words.length} từ</div>
                   <div className="h-1 rounded-full bg-white/30 mt-1.5 overflow-hidden">
-                    <div className="h-full bg-white rounded-full" style={{width: `${pct}%`}}></div>
+                    <div className="h-full bg-white rounded-full" style=${{width: pct + "%"}}></div>
                   </div>
-                </button>
-              );
+                </button>`;
             })}
           </div>
         </div>
       </div>
 
-      {/* Tips */}
       <div className="p-5 rounded-2xl bg-gradient-to-br from-sky-50 to-cyan-50">
         <h3 className="font-semibold mb-3">✅ Mẹo học nhanh nhớ lâu</h3>
-        <ul className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-foreground/80">
+        <ul className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-gray-800">
           <li className="flex items-start gap-2"><span className="text-sky-500">•</span><span>Học theo flashcard 15-20 từ/ngày, không cố quá nhiều.</span></li>
           <li className="flex items-start gap-2"><span className="text-sky-500">•</span><span>Ôn lại theo SRS đúng hạn để chuyển vào trí nhớ dài hạn.</span></li>
           <li className="flex items-start gap-2"><span className="text-sky-500">•</span><span>Đọc to câu ví dụ và nhấn nút loa để nghe phát âm chuẩn.</span></li>
           <li className="flex items-start gap-2"><span className="text-sky-500">•</span><span>Kết hợp Quiz và Matching để kích thích nhớ chủ động.</span></li>
         </ul>
       </div>
-    </div>
-  );
+    </div>`;
 }
 
 // ==================== Flashcard ====================
-function Flashcard({ topicId = "all", onGrade, onMarkLearned, dueWordIds }) {
+function Flashcard(props) {
+  const topicId = props.topicId || "all";
+  const onGrade = props.onGrade;
+  const onMarkLearned = props.onMarkLearned;
+  const dueWordIds = props.dueWordIds;
   const [deck, setDeck] = useState([]);
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
 
-  useEffect(() => {
+  useEffect(function() {
     let words = [];
-    if (topicId === "all") words = [...VOCAB];
+    if (topicId === "all") words = VOCAB.slice();
     else if (topicId === "due") {
-      const ids = new Set(dueWordIds ?? []);
-      words = VOCAB.filter(w => ids.has(w.id));
-    } else words = VOCAB.filter(w => w.topic === topicId);
+      const ids = new Set(dueWordIds || []);
+      words = VOCAB.filter(function(w) { return ids.has(w.id); });
+    } else {
+      words = VOCAB.filter(function(w) { return w.topic === topicId; });
+    }
     setDeck(words);
     setIndex(0);
     setFlipped(false);
@@ -543,117 +546,114 @@ function Flashcard({ topicId = "all", onGrade, onMarkLearned, dueWordIds }) {
 
   const current = deck[index];
 
-  const goNext = useCallback(() => {
+  const goNext = useCallback(function() {
     setFlipped(false);
-    setTimeout(() => setIndex(i => (i + 1) % Math.max(deck.length, 1)), 120);
+    setTimeout(function() { setIndex(function(i) { return (i + 1) % Math.max(deck.length, 1); }); }, 120);
   }, [deck.length]);
 
-  const goPrev = useCallback(() => {
+  const goPrev = useCallback(function() {
     setFlipped(false);
-    setTimeout(() => setIndex(i => (i - 1 + deck.length) % Math.max(deck.length, 1)), 120);
+    setTimeout(function() { setIndex(function(i) { return (i - 1 + deck.length) % Math.max(deck.length, 1); }); }, 120);
   }, [deck.length]);
 
-  const handleGrade = useCallback((grade) => {
+  const handleGrade = useCallback(function(grade) {
     if (!current) return;
-    onGrade?.(current.id, grade);
-    if (grade >= 3) onMarkLearned?.(current.id);
+    if (onGrade) onGrade(current.id, grade);
+    if (grade >= 3 && onMarkLearned) onMarkLearned(current.id);
     goNext();
   }, [current, onGrade, onMarkLearned, goNext]);
 
-  useEffect(() => {
-    const handler = (e) => {
+  useEffect(function() {
+    function handler(e) {
       if (!current) return;
-      if (e.code === "Space") { e.preventDefault(); setFlipped(f => !f); }
+      if (e.code === "Space") { e.preventDefault(); setFlipped(function(f) { return !f; }); }
       else if (e.code === "ArrowRight") goNext();
       else if (e.code === "ArrowLeft") goPrev();
       else if (e.code === "Digit1") handleGrade(0);
       else if (e.code === "Digit2") handleGrade(3);
       else if (e.code === "Digit3") handleGrade(5);
-    };
+    }
     window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    return function() { window.removeEventListener("keydown", handler); };
   }, [current, goNext, goPrev, handleGrade]);
 
   if (deck.length === 0 || !current) {
-    return (
+    return html`
       <div className="flex flex-col items-center justify-center py-20 text-center">
         <div className="text-6xl mb-4">🎉</div>
         <h3 className="text-xl font-semibold mb-2">Tuyệt vời!</h3>
-        <p className="text-muted-foreground">{topicId === "due" ? "Không có từ nào cần ôn lúc này. Hãy quay lại sau hoặc học chủ đề mới!" : "Chưa có từ vựng trong bộ này."}</p>
-      </div>
-    );
+        <p className="text-gray-600">${topicId === "due" ? "Không có từ nào cần ôn lúc này. Hãy quay lại sau hoặc học chủ đề mới!" : "Chưa có từ vựng trong bộ này."}</p>
+      </div>`;
   }
 
   const topic = getTopic(current.topic);
 
-  return (
+  return html`
     <div className="flex flex-col gap-6">
       <div className="space-y-2">
-        <div className="flex items-center justify-between text-sm text-muted-foreground">
-          <span>Thẻ {index + 1} / {deck.length}</span>
-          <span>{Math.round(((index + 1) / deck.length) * 100)}%</span>
+        <div className="flex items-center justify-between text-sm text-gray-500">
+          <span>Thẻ ${index + 1} / ${deck.length}</span>
+          <span>${Math.round(((index + 1) / deck.length) * 100)}%</span>
         </div>
-        <div className="h-2 rounded-full bg-muted overflow-hidden">
-          <div className="h-full bg-gradient-to-r from-violet-500 to-fuchsia-500 transition-all" style={{width: `${((index + 1) / deck.length) * 100}%`}}></div>
+        <div className="h-2 rounded-full bg-gray-200 overflow-hidden">
+          <div className="h-full bg-gradient-to-r from-violet-500 to-fuchsia-500 transition-all" style=${{width: ((index + 1) / deck.length * 100) + "%"}}></div>
         </div>
       </div>
 
-      <div className={`flip-card w-full h-[420px] cursor-pointer ${flipped ? "flipped" : ""}`} onClick={() => setFlipped(f => !f)}>
+      <div className=${"flip-card w-full h-[420px] cursor-pointer" + (flipped ? " flipped" : "")} onClick=${function() { setFlipped(function(f) { return !f; }); }}>
         <div className="flip-card-inner">
-          {/* Front */}
-          <div className={`flip-card-front rounded-3xl flex flex-col items-center justify-center gap-4 p-8 bg-gradient-to-br ${topic.color} shadow-xl text-white overflow-hidden`}>
+          <div className=${"flip-card-front rounded-3xl flex flex-col items-center justify-center gap-4 p-8 bg-gradient-to-br " + topic.color + " shadow-xl text-white overflow-hidden"}>
             <div className="absolute top-4 left-4">
-              <span className="px-2 py-1 rounded-full bg-white/25 text-white text-xs">{topic.emoji} {topic.name}</span>
+              <span className="px-2 py-1 rounded-full bg-white/25 text-white text-xs">${topic.emoji} ${topic.name}</span>
             </div>
-            <button className="absolute top-4 right-4 text-white hover:bg-white/20 p-2 rounded-full" onClick={(e) => { e.stopPropagation(); speak(current.han); }}>🔊</button>
-            <div className="text-7xl mb-2">{current.emoji}</div>
-            <div className="text-7xl md:text-8xl font-bold tracking-tight drop-shadow-lg">{current.han}</div>
-            <div className="text-2xl font-medium opacity-95 italic">{current.pinyin}</div>
+            <button className="absolute top-4 right-4 text-white hover:bg-white/20 p-2 rounded-full" onClick=${function(e) { e.stopPropagation(); speak(current.han); }}>🔊</button>
+            <div className="text-7xl mb-2">${current.emoji}</div>
+            <div className="text-7xl md:text-8xl font-bold tracking-tight drop-shadow-lg">${current.han}</div>
+            <div className="text-2xl font-medium opacity-95 italic">${current.pinyin}</div>
             <div className="absolute bottom-4 text-white/80 text-xs">👆 Nhấp để lật thẻ xem nghĩa</div>
           </div>
-          {/* Back */}
           <div className="flip-card-back rounded-3xl flex flex-col gap-4 p-6 bg-white shadow-xl border-2 border-violet-200">
             <div className="flex items-center justify-between">
-              <span className="px-2 py-1 rounded-full bg-muted text-xs">{current.pos}</span>
-              <button className="p-2 hover:bg-muted rounded-full" onClick={(e) => { e.stopPropagation(); speak(current.han); }}>🔊</button>
+              <span className="px-2 py-1 rounded-full bg-gray-100 text-xs">${current.pos}</span>
+              <button className="p-2 hover:bg-gray-100 rounded-full" onClick=${function(e) { e.stopPropagation(); speak(current.han); }}>🔊</button>
             </div>
             <div className="flex flex-col items-center gap-1">
-              <div className="text-5xl font-bold">{current.han}</div>
-              <div className="text-base text-muted-foreground italic">{current.pinyin}</div>
-              <div className="text-3xl font-semibold text-violet-600 mt-2">{current.meaning}</div>
+              <div className="text-5xl font-bold">${current.han}</div>
+              <div className="text-base text-gray-500 italic">${current.pinyin}</div>
+              <div className="text-3xl font-semibold text-violet-600 mt-2">${current.meaning}</div>
             </div>
             <div className="border-t border-dashed border-violet-200 pt-3 space-y-1">
-              <div className="text-xs uppercase tracking-wide text-muted-foreground">Ví dụ</div>
-              <div className="text-lg font-medium">{current.ex}</div>
-              <div className="text-sm italic text-muted-foreground">{current.exp}</div>
-              <div className="text-sm text-foreground/80">{current.exv}</div>
+              <div className="text-xs uppercase tracking-wide text-gray-500">Ví dụ</div>
+              <div className="text-lg font-medium">${current.ex}</div>
+              <div className="text-sm italic text-gray-500">${current.exp}</div>
+              <div className="text-sm text-gray-700">${current.exv}</div>
             </div>
           </div>
         </div>
       </div>
 
       <div className="flex items-center justify-between gap-3">
-        <button className="p-2 rounded-lg border border-border hover:bg-muted disabled:opacity-50" onClick={goPrev} disabled={deck.length < 2}>←</button>
+        <button className="p-2 rounded-lg border border-gray-300 hover:bg-gray-100 disabled:opacity-50" onClick=${goPrev} disabled=${deck.length < 2}>←</button>
         <div className="flex gap-2 flex-1 justify-center">
-          <button className="px-4 py-2 rounded-lg border-2 border-rose-200 text-rose-600 hover:bg-rose-50 text-sm font-medium flex items-center gap-2" onClick={() => handleGrade(0)}>❌ Chưa nhớ <kbd className="ml-1 text-[10px] px-1 py-0.5 rounded bg-rose-100 text-rose-700">1</kbd></button>
-          <button className="px-4 py-2 rounded-lg border-2 border-amber-200 text-amber-600 hover:bg-amber-50 text-sm font-medium flex items-center gap-2" onClick={() => handleGrade(3)}>✅ Nhớ <kbd className="ml-1 text-[10px] px-1 py-0.5 rounded bg-amber-100 text-amber-700">2</kbd></button>
-          <button className="px-4 py-2 rounded-lg border-2 border-emerald-200 text-emerald-600 hover:bg-emerald-50 text-sm font-medium flex items-center gap-2" onClick={() => handleGrade(5)}>✨ Dễ <kbd className="ml-1 text-[10px] px-1 py-0.5 rounded bg-emerald-100 text-emerald-700">3</kbd></button>
+          <button className="px-4 py-2 rounded-lg border-2 border-rose-200 text-rose-600 hover:bg-rose-50 text-sm font-medium flex items-center gap-2" onClick=${function() { handleGrade(0); }}>❌ Chưa nhớ <kbd className="ml-1 text-[10px] px-1 py-0.5 rounded bg-rose-100 text-rose-700">1</kbd></button>
+          <button className="px-4 py-2 rounded-lg border-2 border-amber-200 text-amber-600 hover:bg-amber-50 text-sm font-medium flex items-center gap-2" onClick=${function() { handleGrade(3); }}>✅ Nhớ <kbd className="ml-1 text-[10px] px-1 py-0.5 rounded bg-amber-100 text-amber-700">2</kbd></button>
+          <button className="px-4 py-2 rounded-lg border-2 border-emerald-200 text-emerald-600 hover:bg-emerald-50 text-sm font-medium flex items-center gap-2" onClick=${function() { handleGrade(5); }}>✨ Dễ <kbd className="ml-1 text-[10px] px-1 py-0.5 rounded bg-emerald-100 text-emerald-700">3</kbd></button>
         </div>
-        <button className="p-2 rounded-lg border border-border hover:bg-muted disabled:opacity-50" onClick={goNext} disabled={deck.length < 2}>→</button>
+        <button className="p-2 rounded-lg border border-gray-300 hover:bg-gray-100 disabled:opacity-50" onClick=${goNext} disabled=${deck.length < 2}>→</button>
       </div>
 
-      <div className="text-center text-xs text-muted-foreground">
-        Phím tắt: <kbd className="px-1.5 py-0.5 rounded bg-muted">Space</kbd> lật thẻ • <kbd className="px-1.5 py-0.5 rounded bg-muted">←/→</kbd> chuyển • <kbd className="px-1.5 py-0.5 rounded bg-muted">1/2/3</kbd> đánh giá
+      <div className="text-center text-xs text-gray-500">
+        Phím tắt: <kbd className="px-1.5 py-0.5 rounded bg-gray-100">Space</kbd> lật thẻ • <kbd className="px-1.5 py-0.5 rounded bg-gray-100">←/→</kbd> chuyển • <kbd className="px-1.5 py-0.5 rounded bg-gray-100">1/2/3</kbd> đánh giá
       </div>
-    </div>
-  );
+    </div>`;
 }
 
 // ==================== Quiz ====================
 const QUIZ_TIME = 15;
 const QUIZ_COUNT = 10;
 
-function Quiz({ onQuizComplete }) {
+function Quiz(props) {
+  const onQuizComplete = props.onQuizComplete;
   const [questions, setQuestions] = useState([]);
   const [current, setCurrent] = useState(0);
   const [selected, setSelected] = useState(null);
@@ -662,22 +662,22 @@ function Quiz({ onQuizComplete }) {
   const [phase, setPhase] = useState("intro");
   const completedRef = useRef(false);
 
-  const generateQuiz = useCallback(() => {
+  const generateQuiz = useCallback(function() {
     const pool = shuffle(VOCAB).slice(0, QUIZ_COUNT);
     const modes = ["han-to-vi", "vi-to-han", "pinyin-to-han"];
-    const qs = pool.map(word => {
+    const qs = pool.map(function(word) {
       const mode = modes[Math.floor(Math.random() * modes.length)];
-      const distractors = shuffle(VOCAB.filter(w => w.id !== word.id)).slice(0, 3);
+      const distractors = shuffle(VOCAB.filter(function(w) { return w.id !== word.id; })).slice(0, 3);
       let correct, options;
       if (mode === "han-to-vi") {
         correct = word.meaning;
-        options = shuffle([correct, ...distractors.map(d => d.meaning)]);
+        options = shuffle([correct].concat(distractors.map(function(d) { return d.meaning; })));
       } else if (mode === "vi-to-han") {
         correct = word.han;
-        options = shuffle([correct, ...distractors.map(d => d.han)]);
+        options = shuffle([correct].concat(distractors.map(function(d) { return d.han; })));
       } else {
         correct = word.han;
-        options = shuffle([correct, ...distractors.map(d => d.han)]);
+        options = shuffle([correct].concat(distractors.map(function(d) { return d.han; })));
       }
       return { word, options, correct, mode };
     });
@@ -686,143 +686,139 @@ function Quiz({ onQuizComplete }) {
     completedRef.current = false;
   }, []);
 
-  const start = () => { generateQuiz(); setPhase("playing"); };
+  function start() { generateQuiz(); setPhase("playing"); }
 
-  useEffect(() => {
+  useEffect(function() {
     if (phase !== "playing") return;
     if (selected !== null) return;
     if (timeLeft <= 0) { setSelected("__timeout__"); return; }
-    const t = setTimeout(() => setTimeLeft(v => v - 1), 1000);
-    return () => clearTimeout(t);
+    const t = setTimeout(function() { setTimeLeft(function(v) { return v - 1; }); }, 1000);
+    return function() { clearTimeout(t); };
   }, [phase, selected, timeLeft]);
 
-  const handleSelect = (opt) => {
+  function handleSelect(opt) {
     if (selected !== null) return;
     setSelected(opt);
-    if (opt === questions[current].correct) setScore(s => s + 1);
-  };
+    if (opt === questions[current].correct) setScore(function(s) { return s + 1; });
+  }
 
-  const next = () => {
+  function next() {
     if (current + 1 >= questions.length) {
       setPhase("result");
       return;
     }
-    setCurrent(c => c + 1);
+    setCurrent(function(c) { return c + 1; });
     setSelected(null);
     setTimeLeft(QUIZ_TIME);
-  };
+  }
 
-  // Gọi onQuizComplete 1 lần duy nhất khi vào phase result (tránh crash)
-  useEffect(() => {
+  useEffect(function() {
     if (phase === "result" && !completedRef.current && questions.length > 0) {
       completedRef.current = true;
-      onQuizComplete?.(score, questions.length);
+      if (onQuizComplete) onQuizComplete(score, questions.length);
     }
     if (phase !== "result") completedRef.current = false;
   }, [phase, score, questions.length, onQuizComplete]);
 
   if (phase === "intro") {
-    return (
+    return html`
       <div className="p-8 flex flex-col items-center gap-6 text-center rounded-3xl bg-gradient-to-br from-violet-100 via-fuchsia-50 to-pink-100">
         <div className="w-20 h-20 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center shadow-lg text-4xl">🏆</div>
         <div>
           <h3 className="text-2xl font-bold mb-2">Quiz trắc nghiệm</h3>
-          <p className="text-muted-foreground max-w-md">{QUIZ_COUNT} câu hỏi • {QUIZ_TIME} giây/câu • 3 dạng: Hán → Việt, Việt → Hán, Pinyin → Hán</p>
+          <p className="text-gray-600 max-w-md">${QUIZ_COUNT} câu hỏi • ${QUIZ_TIME} giây/câu • 3 dạng: Hán → Việt, Việt → Hán, Pinyin → Hán</p>
         </div>
-        <button onClick={start} className="px-6 py-3 rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white hover:opacity-90 font-medium">Bắt đầu quiz 🔄</button>
-      </div>
-    );
+        <button onClick=${start} className="px-6 py-3 rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white hover:opacity-90 font-medium">Bắt đầu quiz 🔄</button>
+      </div>`;
   }
 
   if (phase === "result") {
     const pct = Math.round((score / questions.length) * 100);
     const emoji = pct >= 80 ? "🏆" : pct >= 60 ? "🎉" : pct >= 40 ? "💪" : "📚";
     const title = pct >= 80 ? "Xuất sắc!" : pct >= 60 ? "Tốt lắm!" : pct >= 40 ? "Cố lên!" : "Cần luyện thêm!";
-    return (
+    return html`
       <div className="p-8 flex flex-col items-center gap-6 text-center rounded-3xl bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50">
-        <div className="text-7xl">{emoji}</div>
+        <div className="text-7xl">${emoji}</div>
         <div>
-          <h3 className="text-3xl font-bold mb-1">{title}</h3>
-          <p className="text-muted-foreground">Bạn đã trả lời đúng</p>
+          <h3 className="text-3xl font-bold mb-1">${title}</h3>
+          <p className="text-gray-600">Bạn đã trả lời đúng</p>
         </div>
-        <div className="text-6xl font-bold bg-gradient-to-r from-emerald-500 to-teal-500 bg-clip-text text-transparent">{score}/{questions.length}</div>
-        <span className="px-4 py-1 rounded-full bg-muted text-base">{pct}% chính xác</span>
+        <div className="text-6xl font-bold bg-gradient-to-r from-emerald-500 to-teal-500 bg-clip-text text-transparent">${score}/${questions.length}</div>
+        <span className="px-4 py-1 rounded-full bg-gray-100 text-base">${pct}% chính xác</span>
         <div className="flex gap-3">
-          <button onClick={start} className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white">🔄 Làm lại</button>
-          <button onClick={() => setPhase("intro")} className="px-4 py-2 rounded-xl border border-border">Về trang quiz</button>
+          <button onClick=${start} className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white">🔄 Làm lại</button>
+          <button onClick=${function() { setPhase("intro"); }} className="px-4 py-2 rounded-xl border border-gray-300">Về trang quiz</button>
         </div>
-      </div>
-    );
+      </div>`;
   }
 
   const q = questions[current];
   if (!q) return null;
   const promptLabel = q.mode === "han-to-vi" ? "Chọn nghĩa tiếng Việt" : q.mode === "vi-to-han" ? "Chọn Hán tự đúng" : "Chọn Hán tự theo pinyin";
 
-  return (
+  return html`
     <div className="flex flex-col gap-5">
       <div className="flex items-center justify-between gap-4">
-        <span className="px-2 py-1 rounded-full bg-muted text-sm">Câu {current + 1} / {questions.length}</span>
+        <span className="px-2 py-1 rounded-full bg-gray-100 text-sm">Câu ${current + 1} / ${questions.length}</span>
         <div className="flex items-center gap-2">
-          <span className="px-2 py-1 rounded-full bg-amber-100 text-amber-700 text-sm">⏱ {timeLeft}s</span>
-          <span className="px-2 py-1 rounded-full bg-emerald-100 text-emerald-700 text-sm">🏆 {score}</span>
+          <span className="px-2 py-1 rounded-full bg-amber-100 text-amber-700 text-sm">⏱ ${timeLeft}s</span>
+          <span className="px-2 py-1 rounded-full bg-emerald-100 text-emerald-700 text-sm">🏆 ${score}</span>
         </div>
       </div>
 
       <div className="h-1.5 rounded-full bg-amber-100 overflow-hidden">
-        <div className="h-full bg-amber-400 transition-all" style={{width: `${(timeLeft / QUIZ_TIME) * 100}%`}}></div>
+        <div className="h-full bg-amber-400 transition-all" style=${{width: (timeLeft / QUIZ_TIME * 100) + "%"}}></div>
       </div>
 
       <div className="p-6 md:p-8 flex flex-col items-center gap-4 rounded-3xl bg-gradient-to-br from-violet-50 to-fuchsia-50 border-2 border-violet-100">
-        <div className="text-xs uppercase tracking-wider text-muted-foreground">{promptLabel}</div>
+        <div className="text-xs uppercase tracking-wider text-gray-500">${promptLabel}</div>
         <div className="flex items-center gap-3">
           <div className="text-5xl md:text-6xl font-bold">
-            {q.mode === "han-to-vi" && q.word.han}
-            {q.mode === "vi-to-han" && q.word.meaning}
-            {q.mode === "pinyin-to-han" && <span className="italic">{q.word.pinyin}</span>}
+            ${q.mode === "han-to-vi" ? q.word.han : null}
+            ${q.mode === "vi-to-han" ? q.word.meaning : null}
+            ${q.mode === "pinyin-to-han" ? html`<span className="italic">${q.word.pinyin}</span>` : null}
           </div>
-          {q.mode === "han-to-vi" && <button className="p-2 hover:bg-muted rounded-full" onClick={() => speak(q.word.han)}>🔊</button>}
+          ${q.mode === "han-to-vi" ? html`<button className="p-2 hover:bg-gray-100 rounded-full" onClick=${function() { speak(q.word.han); }}>🔊</button>` : null}
         </div>
-        {q.mode === "han-to-vi" && <div className="text-base italic text-muted-foreground">{q.word.pinyin}</div>}
-        {q.mode === "vi-to-han" && <div className="text-sm text-muted-foreground">{q.word.emoji} {q.word.pos}</div>}
+        ${q.mode === "han-to-vi" ? html`<div className="text-base italic text-gray-500">${q.word.pinyin}</div>` : null}
+        ${q.mode === "vi-to-han" ? html`<div className="text-sm text-gray-500">${q.word.emoji} ${q.word.pos}</div>` : null}
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {q.options.map(opt => {
+        ${q.options.map(function(opt) {
           const isCorrect = opt === q.correct;
           const isSelected = opt === selected;
           let cls = "border-2 hover:border-violet-300 hover:bg-violet-50 transition-all justify-start text-left";
           if (selected !== null) {
             if (isCorrect) cls = "border-2 border-emerald-400 bg-emerald-50 text-emerald-700 justify-start text-left";
             else if (isSelected) cls = "border-2 border-rose-400 bg-rose-50 text-rose-700 justify-start text-left";
-            else cls = "border-2 border-muted opacity-60 justify-start text-left";
+            else cls = "border-2 border-gray-200 opacity-60 justify-start text-left";
           }
-          return (
-            <button key={opt} className={`py-4 px-4 text-lg rounded-xl ${cls}`} onClick={() => handleSelect(opt)} disabled={selected !== null}>
-              <span className="flex-1">{opt}</span>
-              {selected !== null && isCorrect && " ✓"}
-              {selected !== null && isSelected && !isCorrect && " ✗"}
-            </button>
-          );
+          return html`
+            <button key=${opt} className=${"py-4 px-4 text-lg rounded-xl " + cls} onClick=${function() { handleSelect(opt); }} disabled=${selected !== null}>
+              <span className="flex-1">${opt}</span>
+              ${selected !== null && isCorrect ? " ✓" : null}
+              ${selected !== null && isSelected && !isCorrect ? " ✗" : null}
+            </button>`;
         })}
       </div>
 
-      {selected !== null && (
+      ${selected !== null ? html`
         <div className="flex justify-end">
-          <button onClick={next} className="px-4 py-2 rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white">
-            {current + 1 >= questions.length ? "Xem kết quả" : "Câu tiếp theo"}
+          <button onClick=${next} className="px-4 py-2 rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white">
+            ${current + 1 >= questions.length ? "Xem kết quả" : "Câu tiếp theo"}
           </button>
         </div>
-      )}
-    </div>
-  );
+      ` : null}
+    </div>`;
 }
 
 // ==================== Matching ====================
 const MATCH_PAIRS = 6;
 const MATCH_LIVES = 3;
 
-function Matching({ onComplete }) {
+function Matching(props) {
+  const onComplete = props.onComplete;
   const [phase, setPhase] = useState("intro");
   const [cells, setCells] = useState([]);
   const [matched, setMatched] = useState(new Set());
@@ -832,43 +828,42 @@ function Matching({ onComplete }) {
   const [seconds, setSeconds] = useState(0);
   const completedRef = useRef(false);
 
-  const start = useCallback(() => {
+  const start = useCallback(function() {
     const pool = shuffle(VOCAB).slice(0, MATCH_PAIRS);
-    const hanCells = pool.map(w => ({ id: `h-${w.id}`, wordId: w.id, side: "han", text: w.han, pinyin: w.pinyin, emoji: w.emoji }));
-    const viCells = pool.map(w => ({ id: `v-${w.id}`, wordId: w.id, side: "vi", text: w.meaning }));
-    setCells(shuffle([...hanCells, ...viCells]));
+    const hanCells = pool.map(function(w) { return { id: "h-" + w.id, wordId: w.id, side: "han", text: w.han, pinyin: w.pinyin, emoji: w.emoji }; });
+    const viCells = pool.map(function(w) { return { id: "v-" + w.id, wordId: w.id, side: "vi", text: w.meaning }; });
+    setCells(shuffle(hanCells.concat(viCells)));
     setMatched(new Set()); setSelected(null); setWrongPair(null);
     setLives(MATCH_LIVES); setSeconds(0); setPhase("playing");
     completedRef.current = false;
   }, []);
 
-  useEffect(() => {
+  useEffect(function() {
     if (phase !== "playing") return;
-    const t = setInterval(() => setSeconds(s => s + 1), 1000);
-    return () => clearInterval(t);
+    const t = setInterval(function() { setSeconds(function(s) { return s + 1; }); }, 1000);
+    return function() { clearInterval(t); };
   }, [phase]);
 
-  useEffect(() => {
+  useEffect(function() {
     if (phase !== "playing") return;
     if (cells.length > 0 && matched.size === cells.length) setPhase("won");
   }, [matched, cells.length, phase]);
 
-  useEffect(() => {
+  useEffect(function() {
     if (phase !== "playing") return;
     if (lives <= 0) setPhase("lost");
   }, [lives, phase]);
 
-  // Gọi onComplete 1 lần duy nhất khi vào phase won
-  useEffect(() => {
+  useEffect(function() {
     if (phase === "won" && !completedRef.current) {
       completedRef.current = true;
       const score = Math.max(0, 1000 - seconds * 5 + lives * 100);
-      onComplete?.(score);
+      if (onComplete) onComplete(score);
     }
     if (phase !== "won") completedRef.current = false;
   }, [phase, seconds, lives, onComplete]);
 
-  const handleClick = (cell) => {
+  function handleClick(cell) {
     if (matched.has(cell.id) || wrongPair) return;
     if (!selected) { setSelected(cell); return; }
     if (selected.id === cell.id) { setSelected(null); return; }
@@ -878,85 +873,79 @@ function Matching({ onComplete }) {
       setMatched(nm); setSelected(null);
     } else {
       setWrongPair([selected.id, cell.id]);
-      setLives(l => l - 1);
-      setTimeout(() => { setWrongPair(null); setSelected(null); }, 800);
+      setLives(function(l) { return l - 1; });
+      setTimeout(function() { setWrongPair(null); setSelected(null); }, 800);
     }
-  };
+  }
 
   if (phase === "intro") {
-    return (
+    return html`
       <div className="p-8 flex flex-col items-center gap-6 text-center rounded-3xl bg-gradient-to-br from-teal-100 via-cyan-50 to-sky-100">
         <div className="w-20 h-20 rounded-full bg-gradient-to-br from-teal-500 to-cyan-500 flex items-center justify-center shadow-lg text-4xl">✓</div>
         <div>
           <h3 className="text-2xl font-bold mb-2">Ghép cặp từ</h3>
-          <p className="text-muted-foreground max-w-md">Ghép {MATCH_PAIRS} cặp Hán tự ↔ Nghĩa tiếng Việt. {MATCH_LIVES} mạng, càng nhanh điểm càng cao!</p>
+          <p className="text-gray-600 max-w-md">Ghép ${MATCH_PAIRS} cặp Hán tự ↔ Nghĩa tiếng Việt. ${MATCH_LIVES} mạng, càng nhanh điểm càng cao!</p>
         </div>
-        <button onClick={start} className="px-6 py-3 rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500 text-white hover:opacity-90 font-medium">Bắt đầu ghép cặp 🔄</button>
-      </div>
-    );
+        <button onClick=${start} className="px-6 py-3 rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500 text-white hover:opacity-90 font-medium">Bắt đầu ghép cặp 🔄</button>
+      </div>`;
   }
 
   if (phase === "won" || phase === "lost") {
     const score = phase === "won" ? Math.max(0, 1000 - seconds * 5 + lives * 100) : 0;
-    return (
-      <div className={`p-8 flex flex-col items-center gap-6 text-center rounded-3xl ${phase === "won" ? "bg-gradient-to-br from-emerald-100 via-teal-50 to-cyan-100" : "bg-gradient-to-br from-rose-100 via-pink-50 to-red-100"}`}>
-        <div className="text-7xl">{phase === "won" ? "🏆" : "💔"}</div>
+    return html`
+      <div className=${"p-8 flex flex-col items-center gap-6 text-center rounded-3xl " + (phase === "won" ? "bg-gradient-to-br from-emerald-100 via-teal-50 to-cyan-100" : "bg-gradient-to-br from-rose-100 via-pink-50 to-red-100")}>
+        <div className="text-7xl">${phase === "won" ? "🏆" : "💔"}</div>
         <div>
-          <h3 className="text-3xl font-bold mb-1">{phase === "won" ? "Chiến thắng!" : "Hết mạng!"}</h3>
-          <p className="text-muted-foreground">{phase === "won" ? `Hoàn thành trong ${seconds}s, còn ${lives} mạng` : "Đừng nản, thử lại nhé!"}</p>
+          <h3 className="text-3xl font-bold mb-1">${phase === "won" ? "Chiến thắng!" : "Hết mạng!"}</h3>
+          <p className="text-gray-600">${phase === "won" ? "Hoàn thành trong " + seconds + "s, còn " + lives + " mạng" : "Đừng nản, thử lại nhé!"}</p>
         </div>
-        {phase === "won" && <div className="text-5xl font-bold bg-gradient-to-r from-emerald-500 to-teal-500 bg-clip-text text-transparent">{score} điểm</div>}
+        ${phase === "won" ? html`<div className="text-5xl font-bold bg-gradient-to-r from-emerald-500 to-teal-500 bg-clip-text text-transparent">${score} điểm</div>` : null}
         <div className="flex gap-3">
-          <button onClick={start} className="px-4 py-2 rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500 text-white">🔄 Chơi lại</button>
-          <button onClick={() => setPhase("intro")} className="px-4 py-2 rounded-xl border border-border">Về trang ghép cặp</button>
+          <button onClick=${start} className="px-4 py-2 rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500 text-white">🔄 Chơi lại</button>
+          <button onClick=${function() { setPhase("intro"); }} className="px-4 py-2 rounded-xl border border-gray-300">Về trang ghép cặp</button>
         </div>
-      </div>
-    );
+      </div>`;
   }
 
-  return (
+  return html`
     <div className="flex flex-col gap-5">
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-2">
-          {Array.from({ length: MATCH_LIVES }).map((_, i) => (
-            <span key={i} className={`text-xl ${i < lives ? "" : "opacity-30 grayscale"}`}>❤️</span>
-          ))}
+          ${Array.from({ length: MATCH_LIVES }).map(function(_, i) {
+            return html`<span key=${i} className=${"text-xl " + (i < lives ? "" : "opacity-30 grayscale")}>❤️</span>`;
+          })}
         </div>
         <div className="flex items-center gap-2">
-          <span className="px-2 py-1 rounded-full bg-sky-100 text-sky-700 text-sm">⏱ {seconds}s</span>
-          <span className="px-2 py-1 rounded-full bg-emerald-100 text-emerald-700 text-sm">✓ {matched.size / 2}/{MATCH_PAIRS}</span>
+          <span className="px-2 py-1 rounded-full bg-sky-100 text-sky-700 text-sm">⏱ ${seconds}s</span>
+          <span className="px-2 py-1 rounded-full bg-emerald-100 text-emerald-700 text-sm">✓ ${matched.size / 2}/${MATCH_PAIRS}</span>
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3 md:gap-4">
-        {cells.map(cell => {
+        ${cells.map(function(cell) {
           const isMatched = matched.has(cell.id);
-          const isSelected = selected?.id === cell.id;
-          const isWrong = wrongPair?.includes(cell.id);
+          const isSelected = selected && selected.id === cell.id;
+          const isWrong = wrongPair && wrongPair.indexOf(cell.id) !== -1;
           let cls = "bg-white border-slate-200 hover:border-violet-300 hover:shadow-md";
           if (isMatched) cls = "bg-emerald-100 border-emerald-300 opacity-50";
           else if (isWrong) cls = "bg-rose-100 border-rose-400 pulse-wrong";
           else if (isSelected) cls = "bg-gradient-to-br from-violet-500 to-fuchsia-500 border-violet-600 text-white shadow-lg scale-105";
-          return (
-            <button key={cell.id} onClick={() => handleClick(cell)} disabled={isMatched} className={`relative rounded-2xl p-4 md:p-5 min-h-[100px] md:min-h-[120px] flex flex-col items-center justify-center gap-1 transition-all border-2 ${cls}`}>
-              {cell.side === "han" ? (
+          return html`
+            <button key=${cell.id} onClick=${function() { handleClick(cell); }} disabled=${isMatched} className=${"relative rounded-2xl p-4 md:p-5 min-h-[100px] md:min-h-[120px] flex flex-col items-center justify-center gap-1 transition-all border-2 " + cls}>
+              ${cell.side === "han" ? html`
                 <>
-                  <div className="text-3xl">{cell.emoji}</div>
-                  <div className="text-2xl md:text-3xl font-bold">{cell.text}</div>
-                  {!isMatched && <div className={`text-xs italic ${isSelected ? "text-white/80" : "text-muted-foreground"}`}>{cell.pinyin}</div>}
+                  <div className="text-3xl">${cell.emoji}</div>
+                  <div className="text-2xl md:text-3xl font-bold">${cell.text}</div>
+                  ${!isMatched ? html`<div className=${"text-xs italic " + (isSelected ? "text-white/80" : "text-gray-500")}>${cell.pinyin}</div>` : null}
                 </>
-              ) : (
-                <div className="text-base md:text-lg font-semibold text-center">{cell.text}</div>
-              )}
-              {isMatched && <span className="absolute top-2 right-2 text-emerald-600">✓</span>}
-            </button>
-          );
+              ` : html`<div className="text-base md:text-lg font-semibold text-center">${cell.text}</div>`}
+              ${isMatched ? html`<span className="absolute top-2 right-2 text-emerald-600">✓</span>` : null}
+            </button>`;
         })}
       </div>
 
-      <div className="text-center text-xs text-muted-foreground">Nhấp vào 1 từ Hán và 1 nghĩa tiếng Việt để ghép cặp</div>
-    </div>
-  );
+      <div className="text-center text-xs text-gray-500">Nhấp vào 1 từ Hán và 1 nghĩa tiếng Việt để ghép cặp</div>
+    </div>`;
 }
 
 // ==================== Main App ====================
@@ -965,11 +954,11 @@ function App() {
   const [scope, setScope] = useState("all");
   const { progress, hydrated, grade, markLearnedWord, recordQuizScore, recordMatchingScore, reset } = useProgress();
 
-  const allWordIds = useMemo(() => VOCAB.map(w => w.id), []);
-  const dueIds = useMemo(() => progress ? getDueCards(progress, allWordIds) : [], [progress, allWordIds]);
+  const allWordIds = useMemo(function() { return VOCAB.map(function(w) { return w.id; }); }, []);
+  const dueIds = useMemo(function() { return progress ? getDueCards(progress, allWordIds) : []; }, [progress, allWordIds]);
 
-  const startDue = () => { setScope("due"); setTab("flashcard"); };
-  const handleTopicClick = (topicId) => { setScope(topicId); setTab("flashcard"); };
+  function startDue() { setScope("due"); setTab("flashcard"); }
+  function handleTopicClick(topicId) { setScope(topicId); setTab("flashcard"); }
 
   const tabs = [
     { id: "home",      label: "Trang chủ",  icon: "🏠" },
@@ -978,7 +967,15 @@ function App() {
     { id: "matching",  label: "Ghép cặp",   icon: "🔀" },
   ];
 
-  return (
+  function ScopeChip(p) {
+    let cls = "px-3 py-1.5 rounded-full text-xs font-medium transition-all ";
+    if (p.active) cls += "bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white shadow";
+    else if (p.disabled) cls += "bg-gray-100 text-gray-400 cursor-not-allowed";
+    else cls += "bg-white text-gray-900 border border-gray-300 hover:border-violet-300 hover:bg-violet-50";
+    return html`<button onClick=${p.onClick} disabled=${p.disabled} className=${cls}>${p.label}</button>`;
+  }
+
+  return html`
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-violet-50 via-rose-50 to-amber-50">
       <header className="sticky top-0 z-40 backdrop-blur-md bg-white/70 border-b border-white/40">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
@@ -986,73 +983,71 @@ function App() {
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-rose-500 via-fuchsia-500 to-violet-500 flex items-center justify-center shadow-md text-xl">🎓</div>
             <div>
               <h1 className="text-lg md:text-xl font-bold bg-gradient-to-r from-rose-600 via-fuchsia-600 to-violet-600 bg-clip-text text-transparent leading-tight">HSK1 Tiếng Trung</h1>
-              <p className="text-xs text-muted-foreground hidden sm:block">Học từ vựng dễ nhớ • 150 từ HSK 1.0</p>
+              <p className="text-xs text-gray-500 hidden sm:block">Học từ vựng dễ nhớ • 150 từ HSK 1.0</p>
             </div>
           </div>
           <nav className="flex items-center gap-1 bg-white/60 rounded-xl p-1 border border-white/60 shadow-sm">
-            {tabs.map(t => (
-              <button key={t.id} onClick={() => setTab(t.id)} className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${tab === t.id ? "bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white shadow" : "text-muted-foreground hover:text-foreground hover:bg-white/70"}`}>
-                <span>{t.icon}</span>
-                <span className="hidden sm:inline">{t.label}</span>
-              </button>
-            ))}
+            ${tabs.map(function(t) {
+              let cls = "flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ";
+              if (tab === t.id) cls += "bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white shadow";
+              else cls += "text-gray-500 hover:text-gray-900 hover:bg-white/70";
+              return html`<button key=${t.id} onClick=${function() { setTab(t.id); }} className=${cls}>
+                <span>${t.icon}</span>
+                <span className="hidden sm:inline">${t.label}</span>
+              </button>`;
+            })}
           </nav>
         </div>
       </header>
 
       <main className="flex-1 max-w-6xl w-full mx-auto px-4 py-6 md:py-8">
-        {!hydrated ? (
+        ${!hydrated ? html`
           <div className="flex items-center justify-center py-32">
             <div className="animate-spin w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full"></div>
           </div>
-        ) : tab === "home" ? (
-          <Dashboard progress={progress} onTopicClick={handleTopicClick} onStartDue={startDue} />
-        ) : tab === "flashcard" ? (
+        ` : null}
+        ${hydrated && tab === "home" ? html`<${Dashboard} progress=${progress} onTopicClick=${handleTopicClick} onStartDue=${startDue} />` : null}
+        ${hydrated && tab === "flashcard" ? html`
           <div className="flex flex-col gap-4">
             <div className="p-3 rounded-2xl bg-white/70 backdrop-blur shadow-sm">
               <div className="flex flex-wrap gap-2 items-center">
-                <span className="text-xs font-medium text-muted-foreground mr-1">Chọn bộ thẻ:</span>
-                <ScopeChip active={scope === "all"} onClick={() => setScope("all")} label={`📚 Tất cả (${VOCAB.length})`} />
-                <ScopeChip active={scope === "due"} onClick={() => setScope("due")} label={`⏰ Cần ôn (${dueIds.length})`} disabled={dueIds.length === 0} />
-                <div className="w-px h-5 bg-border mx-1"></div>
-                {TOPICS.map(t => {
-                  const count = VOCAB.filter(w => w.topic === t.id).length;
-                  return <ScopeChip key={t.id} active={scope === t.id} onClick={() => setScope(t.id)} label={`${t.emoji} ${t.name} (${count})`} />;
+                <span className="text-xs font-medium text-gray-500 mr-1">Chọn bộ thẻ:</span>
+                <${ScopeChip} active=${scope === "all"} onClick=${function() { setScope("all"); }} label=${"📚 Tất cả (" + VOCAB.length + ")"} />
+                <${ScopeChip} active=${scope === "due"} onClick=${function() { setScope("due"); }} label=${"⏰ Cần ôn (" + dueIds.length + ")"} disabled=${dueIds.length === 0} />
+                <div className="w-px h-5 bg-gray-300 mx-1"></div>
+                ${TOPICS.map(function(t) {
+                  const count = VOCAB.filter(function(w) { return w.topic === t.id; }).length;
+                  return html`<${ScopeChip} key=${t.id} active=${scope === t.id} onClick=${function() { setScope(t.id); }} label=${t.emoji + " " + t.name + " (" + count + ")"} />`;
                 })}
               </div>
             </div>
-            <Flashcard topicId={scope} dueWordIds={dueIds} onGrade={grade} onMarkLearned={markLearnedWord} />
+            <${Flashcard} topicId=${scope} dueWordIds=${dueIds} onGrade=${grade} onMarkLearned=${markLearnedWord} />
           </div>
-        ) : tab === "quiz" ? (
-          <div className="max-w-3xl mx-auto"><Quiz onQuizComplete={(s) => recordQuizScore(s * 10)} /></div>
-        ) : tab === "matching" ? (
-          <div className="max-w-3xl mx-auto"><Matching onComplete={recordMatchingScore} /></div>
-        ) : null}
+        ` : null}
+        ${hydrated && tab === "quiz" ? html`
+          <div className="max-w-3xl mx-auto"><${Quiz} onQuizComplete=${function(s) { recordQuizScore(s * 10); }} /></div>
+        ` : null}
+        ${hydrated && tab === "matching" ? html`
+          <div className="max-w-3xl mx-auto"><${Matching} onComplete=${recordMatchingScore} /></div>
+        ` : null}
 
-        {tab === "home" && progress && progress.totalReviews > 0 && (
+        ${hydrated && tab === "home" && progress && progress.totalReviews > 0 ? html`
           <div className="mt-8 text-center">
-            <button onClick={() => { if (confirm("Xóa toàn bộ tiến độ học tập? Hành động này không thể hoàn tác.")) reset(); }} className="text-xs text-muted-foreground hover:text-rose-600">🗑️ Xóa tiến độ & bắt đầu lại</button>
+            <button onClick=${function() { if (confirm("Xóa toàn bộ tiến độ học tập? Hành động này không thể hoàn tác.")) reset(); }} className="text-xs text-gray-500 hover:text-rose-600">🗑️ Xóa tiến độ & bắt đầu lại</button>
           </div>
-        )}
+        ` : null}
       </main>
 
       <footer className="mt-auto border-t border-white/40 bg-white/40 backdrop-blur py-4">
-        <div className="max-w-6xl mx-auto px-4 text-center text-xs text-muted-foreground">
+        <div className="max-w-6xl mx-auto px-4 text-center text-xs text-gray-500">
           <p className="flex items-center justify-center gap-1.5"><span>✨</span> HSK1 Vocabulary • 150 từ • SRS + Flashcard + Quiz + Matching</p>
           <p className="mt-1 opacity-70">Dữ liệu học tập được lưu trong trình duyệt của bạn</p>
         </div>
       </footer>
-    </div>
-  );
+    </div>`;
 }
 
-function ScopeChip({ active, onClick, label, disabled }) {
-  return (
-    <button onClick={onClick} disabled={disabled} className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${active ? "bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white shadow" : disabled ? "bg-muted/50 text-muted-foreground/50 cursor-not-allowed" : "bg-white text-foreground border border-border hover:border-violet-300 hover:bg-violet-50"}`}>{label}</button>
-  );
-}
-
-ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));
 </script>
 </body>
 </html>
