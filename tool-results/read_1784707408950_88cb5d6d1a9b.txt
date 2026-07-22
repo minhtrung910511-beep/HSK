@@ -1,0 +1,352 @@
+     1→<!DOCTYPE html>
+     2→<html lang="vi">
+     3→<head>
+     4→<meta charset="UTF-8">
+     5→<meta name="viewport" content="width=device-width, initial-scale=1.0">
+     6→<title>HSK1 Tiếng Trung - Học từ vựng dễ nhớ</title>
+     7→<script src="https://cdn.tailwindcss.com"></script>
+     8→<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+     9→<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    10→<script src="https://unpkg.com/htm@3/dist/htm.umd.js"></script>
+    11→<style>
+    12→  body { font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif; margin: 0; }
+    13→  .flip-card { perspective: 1500px; }
+    14→  .flip-card-inner {
+    15→    position: relative; width: 100%; height: 100%;
+    16→    transition: transform 0.5s;
+    17→    transform-style: preserve-3d;
+    18→  }
+    19→  .flip-card.flipped .flip-card-inner { transform: rotateY(180deg); }
+    20→  .flip-card-front, .flip-card-back {
+    21→    position: absolute; width: 100%; height: 100%;
+    22→    backface-visibility: hidden; -webkit-backface-visibility: hidden;
+    23→  }
+    24→  .flip-card-back { transform: rotateY(180deg); }
+    25→  ::-webkit-scrollbar { width: 8px; height: 8px; }
+    26→  ::-webkit-scrollbar-track { background: transparent; }
+    27→  ::-webkit-scrollbar-thumb { background: rgba(139,92,246,0.3); border-radius: 4px; }
+    28→  ::-webkit-scrollbar-thumb:hover { background: rgba(139,92,246,0.5); }
+    29→  kbd { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    30→  @keyframes pulse-wrong {
+    31→    0%, 100% { transform: scale(1); }
+    32→    50% { transform: scale(1.05); }
+    33→  }
+    34→  .pulse-wrong { animation: pulse-wrong 0.4s ease-in-out; }
+    35→</style>
+    36→</head>
+    37→<body>
+    38→<div id="root"></div>
+    39→
+    40→<script>
+    41→// ==================== Setup htm + React ====================
+    42→const html = htm.bind(React.createElement);
+    43→const { useState, useEffect, useMemo, useCallback, useRef } = React;
+    44→
+    45→// ==================== DATA: 150 từ HSK1 ====================
+    46→const TOPICS = [
+    47→  { id: "greetings",  name: "Chào hỏi",    emoji: "\u{1F44B}", color: "from-rose-400 to-pink-400",       desc: "Câu chào, cảm ơn, xin lỗi" },
+    48→  { id: "pronouns",   name: "Đại từ",      emoji: "\u{1F9D1}", color: "from-amber-400 to-orange-400",    desc: "Ngôi xưng hô cơ bản" },
+    49→  { id: "family",     name: "Gia đình",    emoji: "\u{1F468}\u{200D}\u{1F469}\u{200D}\u{1F467}", color: "from-orange-400 to-red-400",  desc: "Các thành viên gia đình" },
+    50→  { id: "numbers",    name: "Số đếm",      emoji: "\u{1F522}", color: "from-yellow-400 to-amber-400",    desc: "Số và lượng từ" },
+    51→  { id: "time",       name: "Thời gian",   emoji: "\u{1F550}", color: "from-lime-400 to-green-400",      desc: "Ngày tháng, giờ giấc" },
+    52→  { id: "objects",    name: "Đồ vật",      emoji: "\u{1F392}", color: "from-emerald-400 to-teal-400",    desc: "Đồ dùng học tập & sinh hoạt" },
+    53→  { id: "food",       name: "Thực phẩm",   emoji: "\u{1F35A}", color: "from-teal-400 to-cyan-400",       desc: "Ăn uống, đồ ăn thức uống" },
+    54→  { id: "body",       name: "Cơ thể",      emoji: "\u{1F9E0}", color: "from-cyan-400 to-sky-400",        desc: "Bộ phận cơ thể" },
+    55→  { id: "verbs",      name: "Động từ",     emoji: "\u{1F3C3}", color: "from-sky-400 to-blue-400",        desc: "Các hành động phổ biến" },
+    56→  { id: "adjectives", name: "Tính từ",     emoji: "\u{2728}", color: "from-violet-400 to-purple-400",   desc: "Mô tả tính chất sự vật" },
+    57→  { id: "places",     name: "Nơi chốn",    emoji: "\u{1F3DB}\u{FE0F}", color: "from-fuchsia-400 to-pink-400",   desc: "Địa điểm & phương hướng" },
+    58→];
+    59→
+    60→const VOCAB = [
+    61→  { id: 1,  han: "你好",   pinyin: "nǐ hǎo",       meaning: "xin chào",            pos: "Thán từ",   emoji: "\u{1F44B}", ex: "你好，我叫小明。",       exp: "Nǐ hǎo, wǒ jiào Xiǎomíng.",         exv: "Xin chào, tôi tên là Tiểu Minh.", topic: "greetings" },
+    62→  { id: 2,  han: "再见",   pinyin: "zài jiàn",     meaning: "tạm biệt",            pos: "Thán từ",   emoji: "\u{1F64B}", ex: "明天见，再见！",         exp: "Míngtiān jiàn, zài jiàn!",          exv: "Hẹn gặp lại ngày mai, tạm biệt!", topic: "greetings" },
+    63→  { id: 3,  han: "谢谢",   pinyin: "xiè xie",      meaning: "cảm ơn",              pos: "Động từ",   emoji: "\u{1F64F}", ex: "谢谢你帮我。",           exp: "Xièxie nǐ bāng wǒ.",                exv: "Cảm ơn bạn đã giúp tôi.", topic: "greetings" },
+    64→  { id: 4,  han: "不客气", pinyin: "bú kè qi",     meaning: "không có chi",        pos: "Tình thái từ", emoji: "\u{1F60A}", ex: "不客气，应该的。",     exp: "Bú kèqi, yīnggāi de.",              exv: "Không có chi, điều đáng làm.", topic: "greetings" },
+    65→  { id: 5,  han: "对不起", pinyin: "duì bu qǐ",    meaning: "xin lỗi",             pos: "Động từ",   emoji: "\u{1F614}", ex: "对不起，我迟到了。",     exp: "Duìbuqǐ, wǒ chídào le.",            exv: "Xin lỗi, tôi đến muộn.", topic: "greetings" },
+    66→  { id: 6,  han: "没关系", pinyin: "méi guān xi",  meaning: "không sao",           pos: "Tình thái từ", emoji: "\u{1F917}", ex: "没关系，别担心。",     exp: "Méi guānxi, bié dānxīn.",           exv: "Không sao, đừng lo lắng.", topic: "greetings" },
+    67→  { id: 7,  han: "请",     pinyin: "qǐng",         meaning: "làm ơn / xin mời",    pos: "Động từ",   emoji: "\u{1F91D}", ex: "请进，请坐。",           exp: "Qǐng jìn, qǐng zuò.",               exv: "Mời vào, mời ngồi.", topic: "greetings" },
+    68→  { id: 8,  han: "是",     pinyin: "shì",          meaning: "là",                  pos: "Động từ",   emoji: "\u{2705}", ex: "我是学生。",             exp: "Wǒ shì xuéshēng.",                  exv: "Tôi là học sinh.", topic: "greetings" },
+    69→  { id: 9,  han: "不",     pinyin: "bù",           meaning: "không",               pos: "Phó từ",    emoji: "\u{274C}", ex: "我不是老师。",           exp: "Wǒ bú shì lǎoshī.",                 exv: "Tôi không phải là giáo viên.", topic: "greetings" },
+    70→  { id: 10, han: "欢迎",   pinyin: "huān yíng",    meaning: "hoan nghênh",         pos: "Động từ",   emoji: "\u{1F389}", ex: "欢迎你们来中国！",       exp: "Huānyíng nǐmen lái Zhōngguó!",      exv: "Hoan nghênh các bạn đến Trung Quốc!", topic: "greetings" },
+    71→
+    72→  { id: 11, han: "我",     pinyin: "wǒ",           meaning: "tôi",                 pos: "Đại từ",    emoji: "\u{1F64B}", ex: "我很高兴。",             exp: "Wǒ hěn gāoxìng.",                   exv: "Tôi rất vui.", topic: "pronouns" },
+    73→  { id: 12, han: "你",     pinyin: "nǐ",           meaning: "bạn",                 pos: "Đại từ",    emoji: "\u{1F449}", ex: "你好吗？",               exp: "Nǐ hǎo ma?",                       exv: "Bạn khỏe không?", topic: "pronouns" },
+    74→  { id: 13, han: "您",     pinyin: "nín",          meaning: "ngài (lịch sự)",      pos: "Đại từ",    emoji: "\u{1F647}", ex: "您贵姓？",               exp: "Nín guì xìng?",                    exv: "Xin hỏi quý danh?", topic: "pronouns" },
+    75→  { id: 14, han: "他",     pinyin: "tā",           meaning: "anh ấy",              pos: "Đại từ",    emoji: "\u{1F468}", ex: "他是医生。",             exp: "Tā shì yīshēng.",                   exv: "Anh ấy là bác sĩ.", topic: "pronouns" },
+    76→  { id: 15, han: "她",     pinyin: "tā",           meaning: "cô ấy",               pos: "Đại từ",    emoji: "\u{1F469}", ex: "她很漂亮。",             exp: "Tā hěn piàoliang.",                 exv: "Cô ấy rất xinh đẹp.", topic: "pronouns" },
+    77→  { id: 16, han: "我们",   pinyin: "wǒ men",       meaning: "chúng tôi",           pos: "Đại từ",    emoji: "\u{1F465}", ex: "我们是同学。",           exp: "Wǒmen shì tóngxué.",                exv: "Chúng tôi là bạn học cùng lớp.", topic: "pronouns" },
+    78→  { id: 17, han: "你们",   pinyin: "nǐ men",       meaning: "các bạn",             pos: "Đại từ",    emoji: "\u{1F46B}", ex: "你们去哪儿？",           exp: "Nǐmen qù nǎr?",                    exv: "Các bạn đi đâu?", topic: "pronouns" },
+    79→  { id: 18, han: "他们",   pinyin: "tā men",       meaning: "họ (nam)",            pos: "Đại từ",    emoji: "\u{1F46C}", ex: "他们在学校。",           exp: "Tāmen zài xuéxiào.",                exv: "Họ đang ở trường.", topic: "pronouns" },
+    80→  { id: 19, han: "这",     pinyin: "zhè",          meaning: "đây / này",           pos: "Đại từ",    emoji: "\u{1F448}", ex: "这是我的书。",           exp: "Zhè shì wǒ de shū.",                exv: "Đây là quyển sách của tôi.", topic: "pronouns" },
+    81→  { id: 20, han: "那",     pinyin: "nà",           meaning: "kia / đó",            pos: "Đại từ",    emoji: "\u{1F449}", ex: "那是谁？",               exp: "Nà shì shuí?",                     exv: "Kia là ai?", topic: "pronouns" },
+    82→  { id: 21, han: "谁",     pinyin: "shuí",         meaning: "ai",                  pos: "Đại từ",    emoji: "\u{2753}", ex: "你是谁？",               exp: "Nǐ shì shuí?",                     exv: "Bạn là ai?", topic: "pronouns" },
+    83→  { id: 22, han: "什么",   pinyin: "shén me",      meaning: "gì / cái gì",         pos: "Đại từ",    emoji: "\u{2754}", ex: "这是什么？",             exp: "Zhè shì shénme?",                   exv: "Đây là cái gì?", topic: "pronouns" },
+    84→  { id: 23, han: "哪",     pinyin: "nǎ",           meaning: "nào",                 pos: "Đại từ",    emoji: "\u{1F914}", ex: "你是哪国人？",           exp: "Nǐ shì nǎ guó rén?",                exv: "Bạn là người nước nào?", topic: "pronouns" },
+    85→  { id: 24, han: "怎么",   pinyin: "zěn me",       meaning: "như thế nào",         pos: "Đại từ",    emoji: "\u{1F937}", ex: "你怎么了？",             exp: "Nǐ zěnme le?",                     exv: "Bạn làm sao vậy?", topic: "pronouns" },
+    86→  { id: 25, han: "为什么", pinyin: "wèi shén me",  meaning: "tại sao",             pos: "Đại từ",    emoji: "\u{1F4AD}", ex: "为什么不去？",           exp: "Wèishénme bú qù?",                  exv: "Tại sao không đi?", topic: "pronouns" },
+    87→
+    88→  { id: 26, han: "爸爸",   pinyin: "bà ba",        meaning: "bố / ba",             pos: "Danh từ",   emoji: "\u{1F468}", ex: "我爸爸是老师。",         exp: "Wǒ bàba shì lǎoshī.",               exv: "Bố tôi là giáo viên.", topic: "family" },
+    89→  { id: 27, han: "妈妈",   pinyin: "mā ma",        meaning: "mẹ / má",             pos: "Danh từ",   emoji: "\u{1F469}", ex: "妈妈做饭。",             exp: "Māma zuò fàn.",                     exv: "Mẹ đang nấu cơm.", topic: "family" },
+    90→  { id: 28, han: "哥哥",   pinyin: "gē ge",        meaning: "anh trai",            pos: "Danh từ",   emoji: "\u{1F466}", ex: "哥哥很高。",             exp: "Gēge hěn gāo.",                     exv: "Anh trai tôi rất cao.", topic: "family" },
+    91→  { id: 29, han: "弟弟",   pinyin: "dì di",        meaning: "em trai",             pos: "Danh từ",   emoji: "\u{1F466}", ex: "弟弟今年五岁。",         exp: "Dìdi jīnnián wǔ suì.",              exv: "Em trai tôi năm nay 5 tuổi.", topic: "family" },
+    92→  { id: 30, han: "姐姐",   pinyin: "jiě jie",      meaning: "chị gái",             pos: "Danh từ",   emoji: "\u{1F467}", ex: "姐姐是学生。",           exp: "Jiějie shì xuéshēng.",              exv: "Chị gái là học sinh.", topic: "family" },
+    93→  { id: 31, han: "妹妹",   pinyin: "mèi mei",      meaning: "em gái",              pos: "Danh từ",   emoji: "\u{1F467}", ex: "妹妹很可爱。",           exp: "Mèimei hěn kě'ài.",                 exv: "Em gái rất đáng yêu.", topic: "family" },
+    94→  { id: 32, han: "儿子",   pinyin: "ér zi",        meaning: "con trai",            pos: "Danh từ",   emoji: "\u{1F476}", ex: "他们的儿子很聪明。",     exp: "Tāmen de érzi hěn cōngming.",       exv: "Con trai họ rất thông minh.", topic: "family" },
+    95→  { id: 33, han: "女儿",   pinyin: "nǚ'ér",        meaning: "con gái",             pos: "Danh từ",   emoji: "\u{1F476}", ex: "女儿喜欢唱歌。",         exp: "Nǚ'ér xǐhuan chàng gē.",            exv: "Con gái thích hát.", topic: "family" },
+    96→  { id: 34, han: "家",     pinyin: "jiā",          meaning: "nhà / gia đình",      pos: "Danh từ",   emoji: "\u{1F3E0}", ex: "我家在北京。",           exp: "Wǒ jiā zài Běijīng.",               exv: "Nhà tôi ở Bắc Kinh.", topic: "family" },
+    97→  { id: 35, han: "孩子",   pinyin: "hái zi",       meaning: "đứa trẻ / con cái",   pos: "Danh từ",   emoji: "\u{1F9D2}", ex: "孩子们在玩儿。",         exp: "Háizimen zài wánr.",                exv: "Các em đang chơi.", topic: "family" },
+    98→  { id: 36, han: "先生",   pinyin: "xiān sheng",   meaning: "ông / chồng",         pos: "Danh từ",   emoji: "\u{1F935}", ex: "王先生是医生。",         exp: "Wáng xiānsheng shì yīshēng.",       exv: "Ông Vương là bác sĩ.", topic: "family" },
+    99→  { id: 37, han: "太太",   pinyin: "tài tai",      meaning: "bà / vợ",             pos: "Danh từ",   emoji: "\u{1F470}", ex: "李太太很热情。",         exp: "Lǐ tàitai hěn rèqíng.",             exv: "Bà Lý rất nhiệt tình.", topic: "family" },
+   100→  { id: 38, han: "小姐",   pinyin: "xiǎo jie",     meaning: "cô / tiểu thư",       pos: "Danh từ",   emoji: "\u{1F481}", ex: "小姐，请喝茶。",         exp: "Xiǎojie, qǐng hē chá.",             exv: "Cô ơi, mời uống trà.", topic: "family" },
+   101→
+   102→  { id: 39, han: "一",     pinyin: "yī",           meaning: "một",                 pos: "Số từ",     emoji: "1\uFE0F\u20E3", ex: "我有一个苹果。",        exp: "Wǒ yǒu yí ge píngguǒ.",             exv: "Tôi có một quả táo.", topic: "numbers" },
+   103→  { id: 40, han: "二",     pinyin: "èr",           meaning: "hai",                 pos: "Số từ",     emoji: "2\uFE0F\u20E3", ex: "我二十岁。",            exp: "Wǒ èrshí suì.",                     exv: "Tôi hai mươi tuổi.", topic: "numbers" },
+   104→  { id: 41, han: "三",     pinyin: "sān",          meaning: "ba",                  pos: "Số từ",     emoji: "3\uFE0F\u20E3", ex: "三个人在这儿。",        exp: "Sān ge rén zài zhèr.",              exv: "Ba người ở đây.", topic: "numbers" },
+   105→  { id: 42, han: "四",     pinyin: "sì",           meaning: "bốn",                 pos: "Số từ",     emoji: "4\uFE0F\u20E3", ex: "桌子上有四本书。",      exp: "Zhuōzi shàng yǒu sì běn shū.",      exv: "Trên bàn có bốn quyển sách.", topic: "numbers" },
+   106→  { id: 43, han: "五",     pinyin: "wǔ",           meaning: "năm",                 pos: "Số từ",     emoji: "5\uFE0F\u20E3", ex: "我有五个朋友。",        exp: "Wǒ yǒu wǔ ge péngyou.",             exv: "Tôi có năm người bạn.", topic: "numbers" },
+   107→  { id: 44, han: "六",     pinyin: "liù",          meaning: "sáu",                 pos: "Số từ",     emoji: "6\uFE0F\u20E3", ex: "现在六点。",            exp: "Xiànzài liù diǎn.",                 exv: "Bây giờ là sáu giờ.", topic: "numbers" },
+   108→  { id: 45, han: "七",     pinyin: "qī",           meaning: "bảy",                 pos: "Số từ",     emoji: "7\uFE0F\u20E3", ex: "一周有七天。",          exp: "Yì zhōu yǒu qī tiān.",              exv: "Một tuần có bảy ngày.", topic: "numbers" },
+   109→  { id: 46, han: "八",     pinyin: "bā",           meaning: "tám",                 pos: "Số từ",     emoji: "8\uFE0F\u20E3", ex: "八月很热。",            exp: "Bā yuè hěn rè.",                    exv: "Tháng tám rất nóng.", topic: "numbers" },
+   110→  { id: 47, han: "九",     pinyin: "jiǔ",          meaning: "chín",                pos: "Số từ",     emoji: "9\uFE0F\u20E3", ex: "九点开始上课。",        exp: "Jiǔ diǎn kāishǐ shàngkè.",          exv: "Chín giờ bắt đầu học.", topic: "numbers" },
+   111→  { id: 48, han: "十",     pinyin: "shí",          meaning: "mười",                pos: "Số từ",     emoji: "\u{1F51F}", ex: "十个人来了。",          exp: "Shí ge rén lái le.",                exv: "Mười người đã đến.", topic: "numbers" },
+   112→  { id: 49, han: "百",     pinyin: "bǎi",          meaning: "trăm",                pos: "Số từ",     emoji: "\u{1F4AF}", ex: "一百个学生。",          exp: "Yì bǎi ge xuéshēng.",               exv: "Một trăm học sinh.", topic: "numbers" },
+   113→  { id: 50, han: "千",     pinyin: "qiān",         meaning: "nghìn",               pos: "Số từ",     emoji: "\u{1F522}", ex: "一千块钱。",            exp: "Yì qiān kuài qián.",                exv: "Một nghìn tệ.", topic: "numbers" },
+   114→  { id: 51, han: "万",     pinyin: "wàn",          meaning: "mười nghìn",          pos: "Số từ",     emoji: "\u{1F522}", ex: "一年有几天？",          exp: "Yì nián yǒu jǐ tiān?",              exv: "Một năm có bao nhiêu ngày?", topic: "numbers" },
+   115→  { id: 52, han: "零",     pinyin: "líng",         meaning: "số không",            pos: "Số từ",     emoji: "0\uFE0F\u20E3", ex: "电话号码是零。",        exp: "Diànhuà hàomǎ shì líng.",           exv: "Số điện thoại có số không.", topic: "numbers" },
+   116→  { id: 53, han: "两",     pinyin: "liǎng",        meaning: "hai (với lượng từ)",  pos: "Số từ",     emoji: "\u{270C}\uFE0F", ex: "我有两个苹果。",        exp: "Wǒ yǒu liǎng ge píngguǒ.",          exv: "Tôi có hai quả táo.", topic: "numbers" },
+   117→  { id: 54, han: "个",     pinyin: "ge",           meaning: "cái (lượng từ chung)", pos: "Lượng từ",  emoji: "\u{25AB}\uFE0F", ex: "一个人，一个苹果。",    exp: "Yí ge rén, yí ge píngguǒ.",         exv: "Một người, một quả táo.", topic: "numbers" },
+   118→  { id: 55, han: "岁",     pinyin: "suì",          meaning: "tuổi",                pos: "Lượng từ",  emoji: "\u{1F382}", ex: "你几岁了？",            exp: "Nǐ jǐ suì le?",                     exv: "Bạn bao nhiêu tuổi?", topic: "numbers" },
+   119→
+   120→  { id: 56, han: "年",     pinyin: "nián",         meaning: "năm",                 pos: "Danh từ",   emoji: "\u{1F4C5}", ex: "今年是2024年。",        exp: "Jīnnián shì èr líng èr sì nián.",   exv: "Năm nay là năm 2024.", topic: "time" },
+   121→  { id: 57, han: "月",     pinyin: "yuè",          meaning: "tháng",               pos: "Danh từ",   emoji: "\u{1F5D3}\uFE0F", ex: "现在是几月？",         exp: "Xiànzài shì jǐ yuè?",               exv: "Bây giờ là tháng mấy?", topic: "time" },
+   122→  { id: 58, han: "日",     pinyin: "rì",           meaning: "ngày / mặt trời",     pos: "Danh từ",   emoji: "\u{2600}\uFE0F", ex: "十月一日是国庆节。",    exp: "Shí yuè yí rì shì guóqìng jié.",    exv: "Mùng 1 tháng 10 là Quốc khánh.", topic: "time" },
+   123→  { id: 59, han: "号",     pinyin: "hào",          meaning: "ngày (trong tháng)",  pos: "Danh từ",   emoji: "\u{1F4C5}", ex: "今天几号？",            exp: "Jīntiān jǐ hào?",                   exv: "Hôm nay ngày mấy?", topic: "time" },
+   124→  { id: 60, han: "星期",   pinyin: "xīng qī",      meaning: "tuần / thứ",          pos: "Danh từ",   emoji: "\u{1F4C6}", ex: "今天星期几？",          exp: "Jīntiān xīngqī jǐ?",                exv: "Hôm nay là thứ mấy?", topic: "time" },
+   125→  { id: 61, han: "天",     pinyin: "tiān",         meaning: "ngày / bầu trời",     pos: "Danh từ",   emoji: "\u{1F324}\uFE0F", ex: "今天天气很好。",       exp: "Jīntiān tiānqì hěn hǎo.",           exv: "Hôm nay thời tiết rất đẹp.", topic: "time" },
+   126→  { id: 62, han: "今天",   pinyin: "jīn tiān",     meaning: "hôm nay",             pos: "Danh từ",   emoji: "\u{1F4CC}", ex: "今天我很忙。",          exp: "Jīntiān wǒ hěn máng.",              exv: "Hôm nay tôi rất bận.", topic: "time" },
+   127→  { id: 63, han: "明天",   pinyin: "míng tiān",    meaning: "ngày mai",            pos: "Danh từ",   emoji: "\u{1F505}", ex: "明天我去北京。",        exp: "Míngtiān wǒ qù Běijīng.",           exv: "Ngày mai tôi đi Bắc Kinh.", topic: "time" },
+   128→  { id: 64, han: "昨天",   pinyin: "zuó tiān",     meaning: "hôm qua",             pos: "Danh từ",   emoji: "\u{1F519}", ex: "昨天我去看电影了。",    exp: "Zuótiān wǒ qù kàn diànyǐng le.",    exv: "Hôm qua tôi đi xem phim.", topic: "time" },
+   129→  { id: 65, han: "现在",   pinyin: "xiàn zài",     meaning: "bây giờ",             pos: "Danh từ",   emoji: "\u{23F0}", ex: "现在几点？",            exp: "Xiànzài jǐ diǎn?",                  exv: "Bây giờ là mấy giờ?", topic: "time" },
+   130→  { id: 66, han: "时候",   pinyin: "shí hou",      meaning: "lúc / thời điểm",     pos: "Danh từ",   emoji: "\u{231A}", ex: "什么时候去？",          exp: "Shénme shíhou qù?",                 exv: "Lúc nào đi?", topic: "time" },
+   131→  { id: 67, han: "点",     pinyin: "diǎn",         meaning: "giờ (đồng hồ)",       pos: "Lượng từ",  emoji: "\u{1F550}", ex: "三点钟见面。",          exp: "Sān diǎn zhōng jiàn miàn.",         exv: "Ba giờ gặp nhau.", topic: "time" },
+   132→  { id: 68, han: "分",     pinyin: "fēn",          meaning: "phút",                pos: "Lượng từ",  emoji: "\u{23F1}\uFE0F", ex: "三点二十分。",         exp: "Sān diǎn èrshí fēn.",               exv: "Ba giờ hai mươi phút.", topic: "time" },
+   133→  { id: 69, han: "上午",   pinyin: "shàng wǔ",     meaning: "buổi sáng",           pos: "Danh từ",   emoji: "\u{1F305}", ex: "上午我去上课。",        exp: "Shàngwǔ wǒ qù shàngkè.",            exv: "Buổi sáng tôi đi học.", topic: "time" },
+   134→  { id: 70, han: "下午",   pinyin: "xià wǔ",       meaning: "buổi chiều",          pos: "Danh từ",   emoji: "\u{1F307}", ex: "下午我去打球。",        exp: "Xiàwǔ wǒ qù dǎ qiú.",               exv: "Buổi chiều tôi đi chơi bóng.", topic: "time" },
+   135→  { id: 71, han: "时间",   pinyin: "shí jiān",     meaning: "thời gian",           pos: "Danh từ",   emoji: "\u{23F3}", ex: "时间过得真快！",        exp: "Shíjiān guò de zhēn kuài!",         exv: "Thời gian trôi nhanh thật!", topic: "time" },
+   136→
+   137→  { id: 72, han: "书",     pinyin: "shū",          meaning: "sách",                pos: "Danh từ",   emoji: "\u{1F4DA}", ex: "这是一本好书。",        exp: "Zhè shì yì běn hǎo shū.",            exv: "Đây là một quyển sách hay.", topic: "objects" },
+   138→  { id: 73, han: "桌子",   pinyin: "zhuō zi",      meaning: "bàn",                 pos: "Danh từ",   emoji: "\u{1FA91}", ex: "桌子上有书。",          exp: "Zhuōzi shàng yǒu shū.",             exv: "Trên bàn có sách.", topic: "objects" },
+   139→  { id: 74, han: "椅子",   pinyin: "yǐ zi",        meaning: "ghế",                 pos: "Danh từ",   emoji: "\u{1FA91}", ex: "请坐在椅子上。",        exp: "Qǐng zuò zài yǐzi shàng.",          exv: "Xin ngồi trên ghế.", topic: "objects" },
+   140→  { id: 75, han: "杯子",   pinyin: "bēi zi",       meaning: "cái cốc",             pos: "Danh từ",   emoji: "\u{1F964}", ex: "杯子里有水。",          exp: "Bēizi lǐ yǒu shuǐ.",                exv: "Trong cốc có nước.", topic: "objects" },
+   141→  { id: 76, han: "电脑",   pinyin: "diàn nǎo",     meaning: "máy tính",            pos: "Danh từ",   emoji: "\u{1F4BB}", ex: "我要买电脑。",          exp: "Wǒ yào mǎi diànnǎo.",               exv: "Tôi muốn mua máy tính.", topic: "objects" },
+   142→  { id: 77, han: "电视",   pinyin: "diàn shì",     meaning: "tivi",                pos: "Danh từ",   emoji: "\u{1F4FA}", ex: "他在看电视。",          exp: "Tā zài kàn diànshì.",               exv: "Anh ấy đang xem tivi.", topic: "objects" },
+   143→  { id: 78, han: "电话",   pinyin: "diàn huà",     meaning: "điện thoại",          pos: "Danh từ",   emoji: "\u{1F4DE}", ex: "你的电话号码是多少？",  exp: "Nǐ de diànhuà hàomǎ shì duōshao?",  exv: "Số điện thoại của bạn là bao nhiêu?", topic: "objects" },
+   144→  { id: 79, han: "车",     pinyin: "chē",          meaning: "xe",                  pos: "Danh từ",   emoji: "\u{1F697}", ex: "这是我的车。",          exp: "Zhè shì wǒ de chē.",                exv: "Đây là xe của tôi.", topic: "objects" },
+   145→  { id: 80, han: "笔",     pinyin: "bǐ",           meaning: "bút",                 pos: "Danh từ",   emoji: "\u{1F58A}\uFE0F", ex: "你有几支笔？",         exp: "Nǐ yǒu jǐ zhī bǐ?",                 exv: "Bạn có mấy cây bút?", topic: "objects" },
+   146→  { id: 81, han: "衣服",   pinyin: "yī fu",        meaning: "quần áo",             pos: "Danh từ",   emoji: "\u{1F455}", ex: "这件衣服很漂亮。",      exp: "Zhè jiàn yīfu hěn piàoliang.",      exv: "Bộ quần áo này rất đẹp.", topic: "objects" },
+   147→  { id: 82, han: "伞",     pinyin: "sǎn",          meaning: "ô / dù",              pos: "Danh từ",   emoji: "\u{2602}\uFE0F", ex: "今天带伞了吗？",       exp: "Jīntiān dài sǎn le ma?",            exv: "Hôm nay bạn mang ô chưa?", topic: "objects" },
+   148→  { id: 83, han: "表",     pinyin: "biǎo",         meaning: "đồng hồ đeo tay",     pos: "Danh từ",   emoji: "\u{231A}", ex: "我的表很准。",          exp: "Wǒ de biǎo hěn zhǔn.",              exv: "Đồng hồ của tôi rất chuẩn.", topic: "objects" },
+   149→  { id: 84, han: "钱",     pinyin: "qián",         meaning: "tiền",                pos: "Danh từ",   emoji: "\u{1F4B0}", ex: "我没带钱。",            exp: "Wǒ méi dài qián.",                  exv: "Tôi không mang tiền.", topic: "objects" },
+   150→  { id: 85, han: "票",     pinyin: "piào",         meaning: "vé",                  pos: "Danh từ",   emoji: "\u{1F39F}\uFE0F", ex: "买两张票。",           exp: "Mǎi liǎng zhāng piào.",             exv: "Mua hai tấm vé.", topic: "objects" },
+   151→  { id: 86, han: "纸",     pinyin: "zhǐ",          meaning: "giấy",                pos: "Danh từ",   emoji: "\u{1F4C4}", ex: "给我一张纸。",          exp: "Gěi wǒ yì zhāng zhǐ.",              exv: "Cho tôi một tờ giấy.", topic: "objects" },
+   152→  { id: 87, han: "水果",   pinyin: "shuǐ guǒ",     meaning: "trái cây",            pos: "Danh từ",   emoji: "\u{1F34E}", ex: "我喜欢吃水果。",        exp: "Wǒ xǐhuan chī shuǐguǒ.",            exv: "Tôi thích ăn trái cây.", topic: "objects" },
+   153→
+   154→  { id: 88, han: "吃",     pinyin: "chī",          meaning: "ăn",                  pos: "Động từ",   emoji: "\u{1F37D}\uFE0F", ex: "我们吃饭吧。",         exp: "Wǒmen chī fàn ba.",                 exv: "Chúng ta ăn cơm đi.", topic: "food" },
+   155→  { id: 89, han: "喝",     pinyin: "hē",           meaning: "uống",                pos: "Động từ",   emoji: "\u{1F964}", ex: "我想喝水。",            exp: "Wǒ xiǎng hē shuǐ.",                 exv: "Tôi muốn uống nước.", topic: "food" },
+   156→  { id: 90, han: "饭",     pinyin: "fàn",          meaning: "cơm / bữa ăn",        pos: "Danh từ",   emoji: "\u{1F35A}", ex: "你吃饭了吗？",          exp: "Nǐ chī fàn le ma?",                 exv: "Bạn ăn cơm chưa?", topic: "food" },
+   157→  { id: 91, han: "水",     pinyin: "shuǐ",         meaning: "nước",                pos: "Danh từ",   emoji: "\u{1F4A7}", ex: "请给我一杯水。",        exp: "Qǐng gěi wǒ yì bēi shuǐ.",          exv: "Xin cho tôi một cốc nước.", topic: "food" },
+   158→  { id: 92, han: "茶",     pinyin: "chá",          meaning: "trà",                 pos: "Danh từ",   emoji: "\u{1F375}", ex: "请喝茶。",              exp: "Qǐng hē chá.",                      exv: "Mời uống trà.", topic: "food" },
+   159→  { id: 93, han: "苹果",   pinyin: "píng guǒ",     meaning: "quả táo",             pos: "Danh từ",   emoji: "\u{1F34E}", ex: "苹果很好吃。",          exp: "Píngguǒ hěn hǎo chī.",              exv: "Táo rất ngon.", topic: "food" },
+   160→  { id: 94, han: "鸡蛋",   pinyin: "jī dàn",       meaning: "trứng gà",            pos: "Danh từ",   emoji: "\u{1F95A}", ex: "早上我吃鸡蛋。",        exp: "Zǎoshang wǒ chī jīdàn.",            exv: "Buổi sáng tôi ăn trứng.", topic: "food" },
+   161→  { id: 95, han: "牛奶",   pinyin: "niú nǎi",      meaning: "sữa bò",              pos: "Danh từ",   emoji: "\u{1F95B}", ex: "我喜欢喝牛奶。",        exp: "Wǒ xǐhuan hē niúnǎi.",              exv: "Tôi thích uống sữa.", topic: "food" },
+   162→  { id: 96, han: "米饭",   pinyin: "mǐ fàn",       meaning: "cơm (gạo)",           pos: "Danh từ",   emoji: "\u{1F35A}", ex: "请来一碗米饭。",        exp: "Qǐng lái yì wǎn mǐfàn.",            exv: "Cho một bát cơm.", topic: "food" },
+   163→  { id: 97, han: "菜",     pinyin: "cài",          meaning: "rau / món ăn",        pos: "Danh từ",   emoji: "\u{1F96C}", ex: "这个菜很好吃。",        exp: "Zhè ge cài hěn hǎo chī.",           exv: "Món này rất ngon.", topic: "food" },
+   164→  { id: 98, han: "鱼",     pinyin: "yú",           meaning: "cá",                  pos: "Danh từ",   emoji: "\u{1F41F}", ex: "我不吃鱼。",            exp: "Wǒ bù chī yú.",                     exv: "Tôi không ăn cá.", topic: "food" },
+   165→  { id: 99, han: "肉",     pinyin: "ròu",          meaning: "thịt",                pos: "Danh từ",   emoji: "\u{1F969}", ex: "他爱吃肉。",            exp: "Tā ài chī ròu.",                    exv: "Anh ấy thích ăn thịt.", topic: "food" },
+   166→
+   167→  { id: 100, han: "头",    pinyin: "tóu",          meaning: "đầu",                 pos: "Danh từ",   emoji: "\u{1F5E3}\uFE0F", ex: "我头疼。",             exp: "Wǒ tóu téng.",                      exv: "Tôi đau đầu.", topic: "body" },
+   168→  { id: 101, han: "手",    pinyin: "shǒu",         meaning: "tay",                 pos: "Danh từ",   emoji: "\u{270B}", ex: "他的手很大。",          exp: "Tā de shǒu hěn dà.",                exv: "Tay anh ấy rất to.", topic: "body" },
+   169→  { id: 102, han: "脚",    pinyin: "jiǎo",         meaning: "chân / bàn chân",     pos: "Danh từ",   emoji: "\u{1F9B6}", ex: "我的脚很冷。",          exp: "Wǒ de jiǎo hěn lěng.",              exv: "Chân tôi rất lạnh.", topic: "body" },
+   170→  { id: 103, han: "眼睛",  pinyin: "yǎn jing",     meaning: "mắt",                 pos: "Danh từ",   emoji: "\u{1F441}\uFE0F", ex: "她的眼睛很大。",       exp: "Tā de yǎnjing hěn dà.",             exv: "Mắt cô ấy rất to.", topic: "body" },
+   171→  { id: 104, han: "嘴",    pinyin: "zuǐ",          meaning: "miệng",               pos: "Danh từ",   emoji: "\u{1F444}", ex: "他的嘴很小。",          exp: "Tā de zuǐ hěn xiǎo.",               exv: "Miệng anh ấy rất nhỏ.", topic: "body" },
+   172→
+   173→  { id: 105, han: "看",    pinyin: "kàn",          meaning: "xem / nhìn",          pos: "Động từ",   emoji: "\u{1F440}", ex: "我在看书。",            exp: "Wǒ zài kàn shū.",                   exv: "Tôi đang đọc sách.", topic: "verbs" },
+   174→  { id: 106, han: "听",    pinyin: "tīng",         meaning: "nghe",                pos: "Động từ",   emoji: "\u{1F442}", ex: "请听我说。",            exp: "Qǐng tīng wǒ shuō.",                exv: "Xin hãy nghe tôi nói.", topic: "verbs" },
+   175→  { id: 107, han: "说",    pinyin: "shuō",         meaning: "nói",                 pos: "Động từ",   emoji: "\u{1F4AC}", ex: "你会说汉语吗？",        exp: "Nǐ huì shuō Hànyǔ ma?",             exv: "Bạn nói được tiếng Trung không?", topic: "verbs" },
+   176→  { id: 108, han: "写",    pinyin: "xiě",          meaning: "viết",                pos: "Động từ",   emoji: "\u{270D}\uFE0F", ex: "请写你的名字。",       exp: "Qǐng xiě nǐ de míngzi.",            exv: "Xin viết tên của bạn.", topic: "verbs" },
+   177→  { id: 109, han: "读",    pinyin: "dú",           meaning: "đọc",                 pos: "Động từ",   emoji: "\u{1F4D6}", ex: "请大声读。",            exp: "Qǐng dàshēng dú.",                  exv: "Xin đọc to.", topic: "verbs" },
+   178→  { id: 110, han: "做",    pinyin: "zuò",          meaning: "làm",                 pos: "Động từ",   emoji: "\u{1F6E0}\uFE0F", ex: "你在做什么？",         exp: "Nǐ zài zuò shénme?",                exv: "Bạn đang làm gì?", topic: "verbs" },
+   179→  { id: 111, han: "来",    pinyin: "lái",          meaning: "đến",                 pos: "Động từ",   emoji: "\u{1F6B6}", ex: "他来了。",              exp: "Tā lái le.",                        exv: "Anh ấy đã đến.", topic: "verbs" },
+   180→  { id: 112, han: "去",    pinyin: "qù",           meaning: "đi",                  pos: "Động từ",   emoji: "\u{1F3C3}", ex: "我去学校。",            exp: "Wǒ qù xuéxiào.",                    exv: "Tôi đi đến trường.", topic: "verbs" },
+   181→  { id: 113, han: "坐",    pinyin: "zuò",          meaning: "ngồi",                pos: "Động từ",   emoji: "\u{1FA91}", ex: "请坐。",                exp: "Qǐng zuò.",                         exv: "Xin ngồi.", topic: "verbs" },
+   182→  { id: 114, han: "站",    pinyin: "zhàn",         meaning: "đứng",                pos: "Động từ",   emoji: "\u{1F9CD}", ex: "请站起来。",            exp: "Qǐng zhàn qǐlái.",                  exv: "Xin đứng lên.", topic: "verbs" },
+   183→  { id: 115, han: "走",    pinyin: "zǒu",          meaning: "đi bộ",               pos: "Động từ",   emoji: "\u{1F6B6}\u200D}\u2642\uFE0F", ex: "我们走吧。",          exp: "Wǒmen zǒu ba.",                     exv: "Chúng ta đi thôi.", topic: "verbs" },
+   184→  { id: 116, han: "住",    pinyin: "zhù",          meaning: "sống / ở",            pos: "Động từ",   emoji: "\u{1F3D8}\uFE0F", ex: "你住在哪儿？",         exp: "Nǐ zhù zài nǎr?",                   exv: "Bạn sống ở đâu?", topic: "verbs" },
+   185→  { id: 117, han: "喜欢",  pinyin: "xǐ huan",      meaning: "thích",               pos: "Động từ",   emoji: "\u{2764}\uFE0F", ex: "我喜欢唱歌。",         exp: "Wǒ xǐhuan chàng gē.",               exv: "Tôi thích hát.", topic: "verbs" },
+   186→  { id: 118, han: "想",    pinyin: "xiǎng",        meaning: "muốn / nghĩ",         pos: "Động từ",   emoji: "\u{1F4AD}", ex: "我想去中国。",          exp: "Wǒ xiǎng qù Zhōngguó.",             exv: "Tôi muốn đi Trung Quốc.", topic: "verbs" },
+   187→  { id: 119, han: "爱",    pinyin: "ài",           meaning: "yêu",                 pos: "Động từ",   emoji: "\u{1F496}", ex: "我爱我的家。",          exp: "Wǒ ài wǒ de jiā.",                  exv: "Tôi yêu gia đình tôi.", topic: "verbs" },
+   188→  { id: 120, han: "买",    pinyin: "mǎi",          meaning: "mua",                 pos: "Động từ",   emoji: "\u{1F6D2}", ex: "我要买水果。",          exp: "Wǒ yào mǎi shuǐguǒ.",               exv: "Tôi muốn mua trái cây.", topic: "verbs" },
+   189→  { id: 121, han: "卖",    pinyin: "mài",          meaning: "bán",                 pos: "Động từ",   emoji: "\u{1F3F7}\uFE0F", ex: "他在卖衣服。",         exp: "Tā zài mài yīfu.",                  exv: "Anh ấy đang bán quần áo.", topic: "verbs" },
+   190→  { id: 122, han: "工作",  pinyin: "gōng zuò",     meaning: "công việc / làm việc", pos: "Động từ",  emoji: "\u{1F4BC}", ex: "他在哪儿工作？",        exp: "Tā zài nǎr gōngzuò?",               exv: "Anh ấy làm việc ở đâu?", topic: "verbs" },
+   191→  { id: 123, han: "学习",  pinyin: "xué xí",       meaning: "học tập",             pos: "Động từ",   emoji: "\u{1F393}", ex: "我们一起学习。",        exp: "Wǒmen yìqǐ xuéxí.",                 exv: "Chúng ta cùng nhau học.", topic: "verbs" },
+   192→  { id: 124, han: "教",    pinyin: "jiāo",         meaning: "dạy",                 pos: "Động từ",   emoji: "\u{1F468}\u200D}\u{1F3EB}", ex: "他教我们汉语。",    exp: "Tā jiāo wǒmen Hànyǔ.",              exv: "Anh ấy dạy chúng tôi tiếng Trung.", topic: "verbs" },
+   193→  { id: 125, han: "认识",  pinyin: "rèn shi",      meaning: "biết / quen",         pos: "Động từ",   emoji: "\u{1F91D}", ex: "我认识他。",            exp: "Wǒ rènshi tā.",                     exv: "Tôi quen anh ấy.", topic: "verbs" },
+   194→  { id: 126, han: "知道",  pinyin: "zhī dào",      meaning: "biết / hay biết",     pos: "Động từ",   emoji: "\u{1F4A1}", ex: "我知道这件事。",        exp: "Wǒ zhīdào zhè jiàn shì.",           exv: "Tôi biết chuyện này.", topic: "verbs" },
+   195→  { id: 127, han: "会",    pinyin: "huì",          meaning: "biết (kỹ năng) / sẽ", pos: "Động từ",   emoji: "\u{2728}", ex: "我会说汉语。",          exp: "Wǒ huì shuō Hànyǔ.",                exv: "Tôi biết nói tiếng Trung.", topic: "verbs" },
+   196→  { id: 128, han: "能",    pinyin: "néng",         meaning: "có thể",              pos: "Động từ",   emoji: "\u{1F4AA}", ex: "你能帮我吗？",          exp: "Nǐ néng bāng wǒ ma?",               exv: "Bạn có thể giúp tôi không?", topic: "verbs" },
+   197→
+   198→  { id: 129, han: "好",    pinyin: "hǎo",          meaning: "tốt",                 pos: "Tính từ",   emoji: "\u{1F44D}", ex: "这个很好。",            exp: "Zhège hěn hǎo.",                    exv: "Cái này rất tốt.", topic: "adjectives" },
+   199→  { id: 130, han: "坏",    pinyin: "huài",         meaning: "xấu / hỏng",          pos: "Tính từ",   emoji: "\u{1F44E}", ex: "电视坏了。",            exp: "Diànshì huài le.",                  exv: "Tivi hỏng rồi.", topic: "adjectives" },
+   200→  { id: 131, han: "大",    pinyin: "dà",           meaning: "to / lớn",            pos: "Tính từ",   emoji: "\u{1F418}", ex: "这个房间很大。",        exp: "Zhège fángjiān hěn dà.",            exv: "Phòng này rất lớn.", topic: "adjectives" },
+   201→  { id: 132, han: "小",    pinyin: "xiǎo",         meaning: "nhỏ",                 pos: "Tính từ",   emoji: "\u{1F41C}", ex: "我的狗很小。",          exp: "Wǒ de gǒu hěn xiǎo.",               exv: "Chó của tôi rất nhỏ.", topic: "adjectives" },
+   202→  { id: 133, han: "多",    pinyin: "duō",          meaning: "nhiều",               pos: "Tính từ",   emoji: "\u{1F4C8}", ex: "很多人来了。",          exp: "Hěn duō rén lái le.",               exv: "Rất nhiều người đã đến.", topic: "adjectives" },
+   203→  { id: 134, han: "少",    pinyin: "shǎo",         meaning: "ít",                  pos: "Tính từ",   emoji: "\u{1F4C9}", ex: "钱不多了。",            exp: "Qián bù duō le.",                   exv: "Tiền không còn nhiều.", topic: "adjectives" },
+   204→  { id: 135, han: "高",    pinyin: "gāo",          meaning: "cao",                 pos: "Tính từ",   emoji: "\u{1F4CF}", ex: "他很高。",              exp: "Tā hěn gāo.",                       exv: "Anh ấy rất cao.", topic: "adjectives" },
+   205→  { id: 136, han: "热",    pinyin: "rè",           meaning: "nóng",                pos: "Tính từ",   emoji: "\u{1F975}", ex: "今天很热。",            exp: "Jīntiān hěn rè.",                   exv: "Hôm nay rất nóng.", topic: "adjectives" },
+   206→  { id: 137, han: "冷",    pinyin: "lěng",         meaning: "lạnh",                pos: "Tính từ",   emoji: "\u{1F976}", ex: "冬天很冷。",            exp: "Dōngtiān hěn lěng.",                exv: "Mùa đông rất lạnh.", topic: "adjectives" },
+   207→  { id: 138, han: "新",    pinyin: "xīn",          meaning: "mới",                 pos: "Tính từ",   emoji: "\u{1F195}", ex: "这是新衣服。",          exp: "Zhè shì xīn yīfu.",                 exv: "Đây là quần áo mới.", topic: "adjectives" },
+   208→  { id: 139, han: "旧",    pinyin: "jiù",          meaning: "cũ",                  pos: "Tính từ",   emoji: "\u{1F4DC}", ex: "这是一本旧书。",        exp: "Zhè shì yì běn jiù shū.",           exv: "Đây là một quyển sách cũ.", topic: "adjectives" },
+   209→  { id: 140, han: "漂亮",  pinyin: "piào liang",   meaning: "đẹp",                 pos: "Tính từ",   emoji: "\u{1F339}", ex: "她很漂亮。",            exp: "Tā hěn piàoliang.",                 exv: "Cô ấy rất đẹp.", topic: "adjectives" },
+   210→  { id: 141, han: "贵",    pinyin: "guì",          meaning: "đắt",                 pos: "Tính từ",   emoji: "\u{1F48E}", ex: "这个太贵了。",          exp: "Zhège tài guì le.",                 exv: "Cái này quá đắt.", topic: "adjectives" },
+   211→  { id: 142, han: "便宜",  pinyin: "pián yi",      meaning: "rẻ",                  pos: "Tính từ",   emoji: "\u{1FA99}", ex: "这个很便宜。",          exp: "Zhège hěn piányi.",                 exv: "Cái này rất rẻ.", topic: "adjectives" },
+   212→  { id: 143, han: "快",    pinyin: "kuài",         meaning: "nhanh",               pos: "Tính từ",   emoji: "\u{26A1}", ex: "他跑得很快。",          exp: "Tā pǎo de hěn kuài.",               exv: "Anh ấy chạy rất nhanh.", topic: "adjectives" },
+   213→  { id: 144, han: "慢",    pinyin: "màn",          meaning: "chậm",                pos: "Tính từ",   emoji: "\u{1F40C}", ex: "请慢走。",              exp: "Qǐng màn zǒu.",                     exv: "Xin đi từ từ.", topic: "adjectives" },
+   214→
+   215→  { id: 145, han: "学校",  pinyin: "xué xiào",     meaning: "trường học",          pos: "Danh từ",   emoji: "\u{1F3EB}", ex: "我们的学校很大。",      exp: "Wǒmen de xuéxiào hěn dà.",          exv: "Trường của chúng tôi rất lớn.", topic: "places" },
+   216→  { id: 146, han: "医院",  pinyin: "yī yuàn",      meaning: "bệnh viện",           pos: "Danh từ",   emoji: "\u{1F3E5}", ex: "他在医院工作。",        exp: "Tā zài yīyuàn gōngzuò.",            exv: "Anh ấy làm việc ở bệnh viện.", topic: "places" },
+   217→  { id: 147, han: "商店",  pinyin: "shāng diàn",   meaning: "cửa hàng",            pos: "Danh từ",   emoji: "\u{1F3EC}", ex: "我去商店买东西。",      exp: "Wǒ qù shāngdiàn mǎi dōngxi.",       exv: "Tôi đi cửa hàng mua đồ.", topic: "places" },
+   218→  { id: 148, han: "饭店",  pinyin: "fàn diàn",     meaning: "nhà hàng",            pos: "Danh từ",   emoji: "\u{1F3E8}", ex: "这家饭店很好。",        exp: "Zhè jiā fàndiàn hěn hǎo.",          exv: "Nhà hàng này rất tốt.", topic: "places" },
+   219→  { id: 149, han: "房间",  pinyin: "fáng jiān",    meaning: "phòng",               pos: "Danh từ",   emoji: "\u{1F6AA}", ex: "我的房间很干净。",      exp: "Wǒ de fángjiān hěn gānjìng.",       exv: "Phòng của tôi rất sạch.", topic: "places" },
+   220→  { id: 150, han: "里",    pinyin: "lǐ",           meaning: "trong / bên trong",   pos: "Danh từ",   emoji: "\u{1F4E5}", ex: "杯子里有水。",          exp: "Bēizi lǐ yǒu shuǐ.",                exv: "Trong cốc có nước.", topic: "places" },
+   221→];
+   222→
+   223→const getTopic = (id) => TOPICS.find(t => t.id === id);
+   224→const TOTAL_WORDS = VOCAB.length;
+   225→
+   226→// ==================== SRS ====================
+   227→const STORAGE_KEY = "hsk1-progress-v1";
+   228→const DAY_MS = 24 * 60 * 60 * 1000;
+   229→
+   230→function todayKey() {
+   231→  const d = new Date();
+   232→  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+   233→}
+   234→
+   235→function defaultProgress() {
+   236→  return {
+   237→    cards: {}, learnedWordIds: [],
+   238→    streak: { current: 0, longest: 0, lastStudyDate: "" },
+   239→    totalReviews: 0, correctReviews: 0, dailyStats: {},
+   240→    quizHighScore: 0, matchingHighScore: 0,
+   241→  };
+   242→}
+   243→
+   244→function loadProgress() {
+   245→  try {
+   246→    const raw = localStorage.getItem(STORAGE_KEY);
+   247→    if (!raw) return defaultProgress();
+   248→    return { ...defaultProgress(), ...JSON.parse(raw) };
+   249→  } catch (e) { return defaultProgress(); }
+   250→}
+   251→
+   252→function saveProgress(p) {
+   253→  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(p)); } catch(e) {}
+   254→}
+   255→
+   256→function newCard(wordId) {
+   257→  return { wordId, repetitions: 0, interval: 0, easeFactor: 2.5, dueDate: Date.now(), lastReviewed: null, history: [] };
+   258→}
+   259→
+   260→function reviewCard(card, grade, now) {
+   261→  now = now || Date.now();
+   262→  let repetitions = card.repetitions;
+   263→  let interval = card.interval;
+   264→  let easeFactor = card.easeFactor;
+   265→  const newEase = Math.max(1.3, easeFactor + (0.1 - (5 - grade) * (0.08 + (5 - grade) * 0.02)));
+   266→  if (grade < 3) {
+   267→    repetitions = 0; interval = 1;
+   268→  } else {
+   269→    repetitions += 1;
+   270→    if (repetitions === 1) interval = 1;
+   271→    else if (repetitions === 2) interval = 3;
+   272→    else interval = Math.round(interval * newEase);
+   273→  }
+   274→  return Object.assign({}, card, {
+   275→    repetitions, interval, easeFactor: newEase,
+   276→    dueDate: now + interval * DAY_MS,
+   277→    lastReviewed: now,
+   278→    history: card.history.concat([{ date: now, grade }]),
+   279→  });
+   280→}
+   281→
+   282→function getDueCards(progress, allWordIds) {
+   283→  const now = Date.now();
+   284→  return allWordIds.filter(function(wordId) {
+   285→    const card = progress.cards[wordId];
+   286→    return !card || card.dueDate <= now;
+   287→  });
+   288→}
+   289→
+   290→function gradeWord(progress, wordId, grade) {
+   291→  const now = Date.now();
+   292→  const existing = progress.cards[wordId] || newCard(wordId);
+   293→  const updated = reviewCard(existing, grade, now);
+   294→  const today = todayKey();
+   295→  const dailyStats = Object.assign({}, progress.dailyStats);
+   296→  if (!dailyStats[today]) dailyStats[today] = { studied: 0, correct: 0 };
+   297→  dailyStats[today].studied += 1;
+   298→  if (grade >= 3) dailyStats[today].correct += 1;
+   299→  const lastDate = progress.streak.lastStudyDate;
+   300→  let current = progress.streak.current;
+   301→  let longest = progress.streak.longest;
+   302→  if (lastDate !== today) {
+   303→    const y = new Date(now - DAY_MS);
+   304→    const yKey = `${y.getFullYear()}-${String(y.getMonth()+1).padStart(2,"0")}-${String(y.getDate()).padStart(2,"0")}`;
+   305→    current = lastDate === yKey ? current + 1 : 1;
+   306→    if (current > longest) longest = current;
+   307→  }
+   308→  const learnedSet = new Set(progress.learnedWordIds);
+   309→  if (grade >= 3) learnedSet.add(wordId);
+   310→  return Object.assign({}, progress, {
+   311→    cards: Object.assign({}, progress.cards, { [wordId]: updated }),
+   312→    learnedWordIds: Array.from(learnedSet),
+   313→    totalReviews: progress.totalReviews + 1,
+   314→    correctReviews: progress.correctReviews + (grade >= 3 ? 1 : 0),
+   315→    streak: { current, longest, lastStudyDate: today },
+   316→    dailyStats,
+   317→  });
+   318→}
+   319→
+   320→function markLearned(progress, wordId) {
+   321→  const s = new Set(progress.learnedWordIds);
+   322→  s.add(wordId);
+   323→  return Object.assign({}, progress, { learnedWordIds: Array.from(s) });
+   324→}
+   325→
+   326→// ==================== Hook: useProgress ====================
+   327→function useProgress() {
+   328→  const [progress, setProgress] = useState(null);
+   329→  const [hydrated, setHydrated] = useState(false);
+   330→  useEffect(function() {
+   331→    setProgress(loadProgress());
+   332→    setHydrated(true);
+   333→  }, []);
+   334→  const grade = useCallback(function(wordId, g) {
+   335→    setProgress(function(p) { if (!p) return p; const next = gradeWord(p, wordId, g); saveProgress(next); return next; });
+   336→  }, []);
+   337→  const markLearnedWord = useCallback(function(wordId) {
+   338→    setProgress(function(p) { if (!p) return p; const next = markLearned(p, wordId); saveProgress(next); return next; });
+   339→  }, []);
+   340→  const recordQuizScore = useCallback(function(score) {
+   341→    setProgress(function(p) { if (!p) return p; const next = score > p.quizHighScore ? Object.assign({}, p, { quizHighScore: score }) : p; saveProgress(next); return next; });
+   342→  }, []);
+   343→  const recordMatchingScore = useCallback(function(score) {
+   344→    setProgress(function(p) { if (!p) return p; const next = score > p.matchingHighScore ? Object.assign({}, p, { matchingHighScore: score }) : p; saveProgress(next); return next; });
+   345→  }, []);
+   346→  const reset = useCallback(function() {
+   347→    const fresh = defaultProgress(); saveProgress(fresh); setProgress(fresh);
+   348→  }, []);
+   349→  return { progress, hydrated, grade, markLearnedWord, recordQuizScore, recordMatchingScore, reset };
+   350→}
+
+[showing lines 1-350 of 1054; use offset=351 with limit to continue reading]

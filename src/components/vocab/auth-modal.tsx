@@ -55,12 +55,18 @@ export function AuthModal({ open, onClose, onLogin, onRegister }: AuthModalProps
       } else {
         await onRegister(username, password, displayName || username);
       }
-      // Reset form + đóng modal ngay lập tức
+      // Reset form
       setUsername("");
       setPassword("");
       setDisplayName("");
       setError(null);
       onClose();
+      // Force reload sau khi login/register thành công để đảm bảo tất cả
+      // component (header, dashboard, leaderboard) sync state từ server
+      // Qua nhiều lần fix state không đồng bộ → đây là cách chắc chắn nhất
+      setTimeout(() => {
+        window.location.reload();
+      }, 200);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Có lỗi xảy ra");
     } finally {
