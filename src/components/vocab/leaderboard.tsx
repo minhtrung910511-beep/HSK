@@ -47,6 +47,9 @@ export function Leaderboard() {
       setDiligence(d.leaderboard || []);
       setQuiz(q.leaderboard || []);
       setMatching(m.leaderboard || []);
+    } catch (e) {
+      // "Failed to fetch" thường xảy ra khi user reload/chuyển tab giữa chừng
+      // → im lặng bỏ qua, không log ra console
     } finally {
       setLoading(false);
     }

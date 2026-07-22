@@ -56,7 +56,7 @@ export function Dashboard({ progress, onTopicClick, onStartDue }: DashboardProps
       const idx = lb.findIndex((r) => r.userId === user.id);
       setRankInfo({ rank: idx + 1, totalUsers: lb.length });
     } catch (e) {
-      console.error("fetch stats failed", e);
+      // "Failed to fetch" khi reload/tab switch - im lặng bỏ qua
     }
   }, [user]);
 
