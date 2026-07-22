@@ -67,8 +67,14 @@ export function useAuth() {
 
   const submitScore = useCallback(
     async (module: "quiz" | "matching" | "flashcard_review", score: number, detail?: Record<string, unknown>) => {
-      if (!user) return null;
+      // Re-check user at call time (callback có thể stale do closure)
       try {
+        const meRes = await fetch("/api/auth/me", { credentials: "same-origin" });
+        const meData = await meRes.json();
+        if (!meData.user) {
+          // Chưa đăng nhập - im lặng skip, không log error
+          return null;
+        }
         const res = await fetch("/api/scores", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -83,7 +89,7 @@ export function useAuth() {
         return null;
       }
     },
-    [user]
+    [],
   );
 
   return { user, loading, login, register, logout, refresh, submitScore };
