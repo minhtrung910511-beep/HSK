@@ -186,6 +186,12 @@ export function Quiz({ questionCount = QUESTION_COUNT, onQuizComplete, onScoreCo
             {questionCount} câu hỏi • {TIME_LIMIT} giây/câu • 3 dạng: Hán → Việt, Việt → Hán, Pinyin → Hán
           </p>
         </div>
+        {!user && !authLoading && (
+          <div className="w-full p-3 rounded-xl bg-amber-100 border border-amber-300 text-amber-800 text-sm flex items-center gap-2 justify-center">
+            <span>⚠️</span>
+            <span>Bạn chưa đăng nhập. Điểm sẽ <b>không lưu</b> lên bảng xếp hạng.</span>
+          </div>
+        )}
         <Button size="lg" onClick={start} className="gap-2 bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white hover:opacity-90">
           Bắt đầu quiz <RotateCcw className="h-4 w-4" />
         </Button>

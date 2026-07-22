@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { VOCAB, VocabWord } from "@/lib/vocab-data";
+import { useAuth } from "@/hooks/use-auth";
 
 interface MatchingProps {
   pairCount?: number;
@@ -36,6 +37,7 @@ function shuffle<T>(arr: T[]): T[] {
 }
 
 export function Matching({ pairCount = DEFAULT_PAIR_COUNT, onComplete, onServerSubmit }: MatchingProps) {
+  const { user, loading: authLoading } = useAuth();
   const [phase, setPhase] = useState<"intro" | "playing" | "won" | "lost">("intro");
   const [cells, setCells] = useState<Cell[]>([]);
   const [matched, setMatched] = useState<Set<string>>(new Set());
@@ -158,6 +160,12 @@ export function Matching({ pairCount = DEFAULT_PAIR_COUNT, onComplete, onServerS
             Ghép {pairCount} cặp Hán tự ↔ Nghĩa tiếng Việt. {MAX_LIVES} mạng, càng nhanh điểm càng cao!
           </p>
         </div>
+        {!user && !authLoading && (
+          <div className="w-full p-3 rounded-xl bg-amber-100 border border-amber-300 text-amber-800 text-sm flex items-center gap-2 justify-center">
+            <span>⚠️</span>
+            <span>Bạn chưa đăng nhập. Điểm sẽ <b>không lưu</b> lên bảng xếp hạng.</span>
+          </div>
+        )}
         <Button size="lg" onClick={start} className="gap-2 bg-gradient-to-r from-teal-500 to-cyan-500 text-white hover:opacity-90">
           Bắt đầu ghép cặp <RotateCcw className="h-4 w-4" />
         </Button>
