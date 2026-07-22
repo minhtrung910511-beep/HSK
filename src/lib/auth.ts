@@ -1,8 +1,9 @@
 import { db } from "@/lib/db";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import crypto from "crypto";
 
 const SESSION_COOKIE = "hsk1_session";
+const SESSION_HEADER = "x-hsk1-token";
 const SESSION_DURATION_MS = 30 * 24 * 60 * 60 * 1000; // 30 ngày
 
 // Hash password đơn giản bằng scrypt (có sẵn trong Node, không cần bcrypt)
@@ -23,14 +24,21 @@ export function generateToken(): string {
   return crypto.randomBytes(32).toString("hex");
 }
 
-// Server-side: get current user từ cookie
+// Server-side: get current user từ cookie HOẶC header x-hsk1-token
+// (Header để hỗ trợ preview domain - proxy có thể không forward cookie)
 export async function getCurrentUser(): Promise<{
   id: string;
   username: string;
   displayName: string;
 } | null> {
   const cookieStore = await cookies();
-  const token = cookieStore.get(SESSION_COOKIE)?.value;
+  const headerStore = await headers();
+
+  // Thử lấy token từ cookie trước, sau đó từ header
+  let token = cookieStore.get(SESSION_COOKIE)?.value;
+  if (!token) {
+    token = headerStore.get(SESSION_HEADER) || undefined;
+  }
   if (!token) return null;
 
   const session = await db.session.findUnique({
@@ -65,5 +73,18 @@ export async function destroySession(token: string): Promise<void> {
   await db.session.deleteMany({ where: { token } }).catch(() => {});
 }
 
+// Helper: thiết lập cookie
+// - Luôn dùng SameSite=Lax để tương thích cả HTTP (dev) và HTTPS (prod/preview)
+export function getCookieOptions() {
+  return {
+    httpOnly: true,
+    sameSite: "lax" as const,
+    secure: false,
+    maxAge: SESSION_MAX_AGE,
+    path: "/",
+  };
+}
+
 export const SESSION_COOKIE_NAME = SESSION_COOKIE;
+export const SESSION_HEADER_NAME = SESSION_HEADER;
 export const SESSION_MAX_AGE = SESSION_DURATION_MS / 1000; // seconds, cho cookie maxAge

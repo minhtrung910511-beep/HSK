@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { verifyPassword, createSession, SESSION_COOKIE_NAME, SESSION_MAX_AGE } from "@/lib/auth";
+import { verifyPassword, createSession, getCookieOptions, SESSION_COOKIE_NAME } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
@@ -22,13 +22,9 @@ export async function POST(req: NextRequest) {
     const token = await createSession(user.id);
     const res = NextResponse.json({
       user: { id: user.id, username: user.username, displayName: user.displayName },
+      token, // Trả token cho client lưu vào localStorage (backup nếu cookie không forward)
     });
-    res.cookies.set(SESSION_COOKIE_NAME, token, {
-      httpOnly: true,
-      sameSite: "lax",
-      maxAge: SESSION_MAX_AGE,
-      path: "/",
-    });
+    res.cookies.set(SESSION_COOKIE_NAME, token, getCookieOptions());
     return res;
   } catch (e) {
     console.error("login error", e);

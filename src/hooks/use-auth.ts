@@ -10,6 +10,41 @@ export interface AuthUser {
 
 // Event global để đồng bộ user state giữa các useAuth instance
 const AUTH_EVENT = "hsk1-auth-changed";
+const TOKEN_STORAGE_KEY = "hsk1_token";
+
+// Helper: lấy token từ localStorage (client-side)
+function getStoredToken(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return localStorage.getItem(TOKEN_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function setStoredToken(token: string | null) {
+  if (typeof window === "undefined") return;
+  try {
+    if (token) localStorage.setItem(TOKEN_STORAGE_KEY, token);
+    else localStorage.removeItem(TOKEN_STORAGE_KEY);
+  } catch {
+    // ignore
+  }
+}
+
+// Helper: fetch với auth header (gửi token qua header nếu có)
+async function authFetch(url: string, options: RequestInit = {}) {
+  const token = getStoredToken();
+  const headers = new Headers(options.headers);
+  if (token) {
+    headers.set("x-hsk1-token", token);
+  }
+  return fetch(url, {
+    ...options,
+    headers,
+    credentials: "same-origin",
+  });
+}
 
 export function useAuth() {
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -17,9 +52,11 @@ export function useAuth() {
 
   const refresh = useCallback(async () => {
     try {
-      const res = await fetch("/api/auth/me", { credentials: "same-origin" });
+      const res = await authFetch("/api/auth/me");
       const data = await res.json();
       setUser(data.user || null);
+      // Nếu server không trả user nhưng client có token → token invalid, xóa
+      if (!data.user) setStoredToken(null);
     } catch {
       setUser(null);
     } finally {
@@ -29,13 +66,11 @@ export function useAuth() {
 
   useEffect(() => {
     refresh();
-    // Lắng nghe event auth-changed để refresh khi instance khác login/logout
     const handler = () => refresh();
     window.addEventListener(AUTH_EVENT, handler);
     return () => window.removeEventListener(AUTH_EVENT, handler);
   }, [refresh]);
 
-  // Helper: cập nhật state + broadcast event cho các instance khác
   const broadcast = useCallback(() => {
     window.dispatchEvent(new Event(AUTH_EVENT));
   }, []);
@@ -49,13 +84,10 @@ export function useAuth() {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "Đăng nhập thất bại");
+    // Lưu token vào localStorage (data.token được set ở API response)
+    if (data.token) setStoredToken(data.token);
     setUser(data.user);
     broadcast();
-    // Force reload để đảm bảo tất cả component sync state từ server
-    // (tránh tình trạng header vẫn hiện "Đăng nhập" do state stale)
-    if (typeof window !== "undefined") {
-      setTimeout(() => window.location.reload(), 100);
-    }
     return data.user;
   }, [broadcast]);
 
@@ -69,45 +101,28 @@ export function useAuth() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Đăng ký thất bại");
+      if (data.token) setStoredToken(data.token);
       setUser(data.user);
       broadcast();
-      // Force reload để đảm bảo tất cả component sync state từ server
-      if (typeof window !== "undefined") {
-        setTimeout(() => window.location.reload(), 100);
-      }
       return data.user;
     },
     [broadcast]
   );
 
   const logout = useCallback(async () => {
-    await fetch("/api/auth/logout", {
-      method: "POST",
-      credentials: "same-origin",
-    });
+    await authFetch("/api/auth/logout", { method: "POST" });
+    setStoredToken(null);
     setUser(null);
     broadcast();
-    // Force reload sau logout
-    if (typeof window !== "undefined") {
-      setTimeout(() => window.location.reload(), 100);
-    }
   }, [broadcast]);
 
   const submitScore = useCallback(
     async (module: "quiz" | "matching" | "flashcard_review", score: number, detail?: Record<string, unknown>) => {
-      // Re-check user at call time (callback có thể stale do closure)
       try {
-        const meRes = await fetch("/api/auth/me", { credentials: "same-origin" });
-        const meData = await meRes.json();
-        if (!meData.user) {
-          // Chưa đăng nhập - im lặng skip, không log error
-          return null;
-        }
-        const res = await fetch("/api/scores", {
+        const res = await authFetch("/api/scores", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ module, score, detail }),
-          credentials: "same-origin",
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error);
