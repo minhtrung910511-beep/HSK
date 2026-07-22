@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { X, User, Lock, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,26 @@ export function AuthModal({ open, onClose, onLogin, onRegister }: AuthModalProps
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // Reset state khi modal đóng/mở lại
+  useEffect(() => {
+    if (open) {
+      setError(null);
+      setLoading(false);
+    }
+  }, [open]);
+
+  // Đóng modal bằng phím Escape
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !loading) {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [open, loading, onClose]);
+
   if (!open) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -35,8 +55,11 @@ export function AuthModal({ open, onClose, onLogin, onRegister }: AuthModalProps
       } else {
         await onRegister(username, password, displayName || username);
       }
-      // Reset form
-      setUsername(""); setPassword(""); setDisplayName("");
+      // Reset form + đóng modal ngay lập tức
+      setUsername("");
+      setPassword("");
+      setDisplayName("");
+      setError(null);
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Có lỗi xảy ra");
@@ -45,8 +68,18 @@ export function AuthModal({ open, onClose, onLogin, onRegister }: AuthModalProps
     }
   };
 
+  // Click ra ngoài backdrop để đóng (không đóng khi đang loading)
+  const handleBackdropClick = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget && !loading) {
+      onClose();
+    }
+  };
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+      onClick={handleBackdropClick}
+    >
       <motion.div
         initial={{ opacity: 0, scale: 0.95, y: 10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -64,12 +97,12 @@ export function AuthModal({ open, onClose, onLogin, onRegister }: AuthModalProps
                 {mode === "login" ? "Đăng nhập" : "Đăng ký"}
               </h2>
             </div>
-            <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8">
+            <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8" disabled={loading}>
               <X className="h-4 w-4" />
             </Button>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-3">
+          <form onSubmit={handleSubmit} className="space-y-3" autoComplete="on">
             {mode === "register" && (
               <div className="space-y-1.5">
                 <Label htmlFor="displayName">Tên hiển thị</Label>
@@ -81,6 +114,8 @@ export function AuthModal({ open, onClose, onLogin, onRegister }: AuthModalProps
                     onChange={(e) => setDisplayName(e.target.value)}
                     placeholder="VD: Nguyễn Văn A"
                     className="pl-9"
+                    autoComplete="name"
+                    disabled={loading}
                   />
                 </div>
               </div>
@@ -97,6 +132,7 @@ export function AuthModal({ open, onClose, onLogin, onRegister }: AuthModalProps
                   className="pl-9"
                   required
                   autoComplete="username"
+                  disabled={loading}
                 />
               </div>
             </div>
@@ -113,6 +149,7 @@ export function AuthModal({ open, onClose, onLogin, onRegister }: AuthModalProps
                   className="pl-9"
                   required
                   autoComplete={mode === "login" ? "current-password" : "new-password"}
+                  disabled={loading}
                 />
               </div>
             </div>
@@ -125,7 +162,7 @@ export function AuthModal({ open, onClose, onLogin, onRegister }: AuthModalProps
 
             <Button
               type="submit"
-              disabled={loading}
+              disabled={loading || !username || !password}
               className="w-full bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white hover:opacity-90"
             >
               {loading ? "Đang xử lý..." : mode === "login" ? "Đăng nhập" : "Tạo tài khoản"}
@@ -140,6 +177,7 @@ export function AuthModal({ open, onClose, onLogin, onRegister }: AuthModalProps
                   type="button"
                   onClick={() => { setMode("register"); setError(null); }}
                   className="text-violet-600 hover:underline font-medium"
+                  disabled={loading}
                 >
                   Đăng ký ngay
                 </button>
@@ -151,6 +189,7 @@ export function AuthModal({ open, onClose, onLogin, onRegister }: AuthModalProps
                   type="button"
                   onClick={() => { setMode("login"); setError(null); }}
                   className="text-violet-600 hover:underline font-medium"
+                  disabled={loading}
                 >
                   Đăng nhập
                 </button>
@@ -162,3 +201,4 @@ export function AuthModal({ open, onClose, onLogin, onRegister }: AuthModalProps
     </div>
   );
 }
+
