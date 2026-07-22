@@ -51,6 +51,11 @@ export function useAuth() {
     if (!res.ok) throw new Error(data.error || "Đăng nhập thất bại");
     setUser(data.user);
     broadcast();
+    // Force reload để đảm bảo tất cả component sync state từ server
+    // (tránh tình trạng header vẫn hiện "Đăng nhập" do state stale)
+    if (typeof window !== "undefined") {
+      setTimeout(() => window.location.reload(), 100);
+    }
     return data.user;
   }, [broadcast]);
 
@@ -66,6 +71,10 @@ export function useAuth() {
       if (!res.ok) throw new Error(data.error || "Đăng ký thất bại");
       setUser(data.user);
       broadcast();
+      // Force reload để đảm bảo tất cả component sync state từ server
+      if (typeof window !== "undefined") {
+        setTimeout(() => window.location.reload(), 100);
+      }
       return data.user;
     },
     [broadcast]
@@ -78,6 +87,10 @@ export function useAuth() {
     });
     setUser(null);
     broadcast();
+    // Force reload sau logout
+    if (typeof window !== "undefined") {
+      setTimeout(() => window.location.reload(), 100);
+    }
   }, [broadcast]);
 
   const submitScore = useCallback(
