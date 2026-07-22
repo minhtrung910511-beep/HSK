@@ -56,6 +56,23 @@ export function Leaderboard() {
     fetchAll();
   }, [fetchAll]);
 
+  // Auto-refresh mỗi 5 giây để bắt điểm mới
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchAll();
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [fetchAll]);
+
+  // Refresh khi tab được hiển thị lại (user quay lại từ tab khác)
+  useEffect(() => {
+    const handler = () => {
+      if (!document.hidden) fetchAll();
+    };
+    document.addEventListener("visibilitychange", handler);
+    return () => document.removeEventListener("visibilitychange", handler);
+  }, [fetchAll]);
+
   const tabs: { id: Tab; label: string; icon: React.ReactNode; gradient: string }[] = [
     { id: "diligence", label: "Chăm chỉ tổng", icon: <Flame className="h-4 w-4" />, gradient: "from-orange-400 to-red-400" },
     { id: "quiz",      label: "Quiz Top",     icon: <Trophy className="h-4 w-4" />, gradient: "from-violet-400 to-fuchsia-400" },

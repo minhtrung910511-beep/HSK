@@ -64,6 +64,24 @@ export function Dashboard({ progress, onTopicClick, onStartDue }: DashboardProps
     fetchStats();
   }, [fetchStats]);
 
+  // Auto-refresh stats mỗi 5 giây để bắt điểm mới
+  useEffect(() => {
+    if (!user) return;
+    const interval = setInterval(() => {
+      fetchStats();
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [user, fetchStats]);
+
+  // Refresh khi tab được hiển thị lại
+  useEffect(() => {
+    const handler = () => {
+      if (!document.hidden) fetchStats();
+    };
+    document.addEventListener("visibilitychange", handler);
+    return () => document.removeEventListener("visibilitychange", handler);
+  }, [fetchStats]);
+
   const totalWords = VOCAB.length;
   const learnedCount = progress?.learnedWordIds.length ?? 0;
   const completionPct = totalWords ? Math.round((learnedCount / totalWords) * 100) : 0;
