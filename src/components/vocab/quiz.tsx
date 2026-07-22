@@ -8,13 +8,15 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { VOCAB, VocabWord } from "@/lib/vocab-data";
+import { useAuth } from "@/hooks/use-auth";
 
 type QuizMode = "han-to-vi" | "vi-to-han" | "pinyin-to-han";
 
 interface QuizProps {
   questionCount?: number;
   onQuizComplete?: (score: number, total: number) => void;
-  onServerSubmit?: (score: number, detail: { correct: number; total: number }) => Promise<unknown>;
+  // Callback nhận (correctCount, totalSeconds) - tính điểm như matching
+  onScoreComputed?: (points: number, detail: { correct: number; total: number; time: number }) => void;
 }
 
 interface Question {
@@ -36,6 +38,16 @@ function shuffle<T>(arr: T[]): T[] {
 const QUESTION_COUNT = 10;
 const TIME_LIMIT = 15; // giây / câu
 
+// Tính điểm quiz theo style matching:
+// - Càng nhiều câu đúng càng cao
+// - Càng nhanh càng cao
+// - Công thức: max(0, 1000 - tổng_thời_gian×5 + đúng×50)
+function computeQuizPoints(correct: number, total: number, totalSeconds: number): number {
+  // Bonus: đúng hết (perfect) +200
+  const perfectBonus = correct === total ? 200 : 0;
+  return Math.max(0, 1000 - totalSeconds * 5 + correct * 50 + perfectBonus);
+}
+
 function speak(text: string) {
   if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
   const utter = new SpeechSynthesisUtterance(text);
@@ -48,7 +60,8 @@ function speak(text: string) {
   window.speechSynthesis.speak(utter);
 }
 
-export function Quiz({ questionCount = QUESTION_COUNT, onQuizComplete, onServerSubmit }: QuizProps) {
+export function Quiz({ questionCount = QUESTION_COUNT, onQuizComplete, onScoreComputed }: QuizProps) {
+  const { user, loading: authLoading, submitScore } = useAuth();
   const [questions, setQuestions] = useState<Question[]>([]);
   const [current, setCurrent] = useState(0);
   const [selected, setSelected] = useState<string | null>(null);
@@ -56,7 +69,10 @@ export function Quiz({ questionCount = QUESTION_COUNT, onQuizComplete, onServerS
   const [timeLeft, setTimeLeft] = useState(TIME_LIMIT);
   const [phase, setPhase] = useState<"intro" | "playing" | "result">("intro");
   const [answeredCount, setAnsweredCount] = useState(0);
+  // Track tổng thời gian chơi quiz (giây)
+  const [totalSeconds, setTotalSeconds] = useState(0);
   const completedRef = useRef(false);
+  const submittedRef = useRef(false);
 
   const generateQuiz = useCallback(() => {
     const pool = shuffle(VOCAB).slice(0, questionCount);
@@ -85,7 +101,9 @@ export function Quiz({ questionCount = QUESTION_COUNT, onQuizComplete, onServerS
     setScore(0);
     setAnsweredCount(0);
     setTimeLeft(TIME_LIMIT);
+    setTotalSeconds(0);
     completedRef.current = false;
+    submittedRef.current = false;
   }, [questionCount]);
 
   const start = () => {
@@ -93,7 +111,7 @@ export function Quiz({ questionCount = QUESTION_COUNT, onQuizComplete, onServerS
     setPhase("playing");
   };
 
-  // Timer
+  // Timer - mỗi giây trừ timeLeft + cộng totalSeconds
   useEffect(() => {
     if (phase !== "playing") return;
     if (selected !== null) return;
@@ -101,7 +119,10 @@ export function Quiz({ questionCount = QUESTION_COUNT, onQuizComplete, onServerS
       setSelected("__timeout__");
       return;
     }
-    const t = setTimeout(() => setTimeLeft(v => v - 1), 1000);
+    const t = setTimeout(() => {
+      setTimeLeft(v => v - 1);
+      setTotalSeconds(s => s + 1);
+    }, 1000);
     return () => clearTimeout(t);
   }, [phase, selected, timeLeft]);
 
@@ -130,15 +151,27 @@ export function Quiz({ questionCount = QUESTION_COUNT, onQuizComplete, onServerS
     if (phase === "result" && !completedRef.current && questions.length > 0) {
       completedRef.current = true;
       onQuizComplete?.(score, questions.length);
-      // Submit lên server nếu có
-      if (onServerSubmit) {
-        onServerSubmit(score, { correct: score, total: questions.length }).catch(() => {});
-      }
     }
     if (phase !== "result") {
       completedRef.current = false;
     }
-  }, [phase, score, questions.length, onQuizComplete, onServerSubmit]);
+  }, [phase, score, questions.length, onQuizComplete]);
+
+  // Submit lên server khi user đã sẵn sàng (sau khi đăng nhập xong) - tính điểm như matching
+  useEffect(() => {
+    if (phase !== "result" || questions.length === 0) return;
+    if (authLoading) return; // Đợi auth xong
+    if (submittedRef.current) return; // Đã submit rồi
+    if (!user) return; // Không có user thì không submit
+
+    submittedRef.current = true;
+    const points = computeQuizPoints(score, questions.length, totalSeconds);
+    const detail = { correct: score, total: questions.length, time: totalSeconds };
+    // Submit lên server
+    submitScore("quiz", points, detail).catch(() => {});
+    // Callback cho parent (lưu localStorage + hiển thị)
+    onScoreComputed?.(points, detail);
+  }, [phase, questions.length, authLoading, user, score, totalSeconds, submitScore, onScoreComputed]);
 
   // ===== INTRO =====
   if (phase === "intro") {
@@ -165,6 +198,8 @@ export function Quiz({ questionCount = QUESTION_COUNT, onQuizComplete, onServerS
     const pct = Math.round((score / questions.length) * 100);
     const emoji = pct >= 80 ? "🏆" : pct >= 60 ? "🎉" : pct >= 40 ? "💪" : "📚";
     const title = pct >= 80 ? "Xuất sắc!" : pct >= 60 ? "Tốt lắm!" : pct >= 40 ? "Cố lên!" : "Cần luyện thêm!";
+    const points = computeQuizPoints(score, questions.length, totalSeconds);
+    const perfect = score === questions.length;
     return (
       <Card className="p-8 flex flex-col items-center gap-6 text-center bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 border-0">
         <div className="text-7xl">{emoji}</div>
@@ -175,7 +210,20 @@ export function Quiz({ questionCount = QUESTION_COUNT, onQuizComplete, onServerS
         <div className="text-6xl font-bold bg-gradient-to-r from-emerald-500 to-teal-500 bg-clip-text text-transparent">
           {score}/{questions.length}
         </div>
-        <Badge variant="secondary" className="text-base px-4 py-1">{pct}% chính xác</Badge>
+        <Badge variant="secondary" className="text-base px-4 py-1">{pct}% chính xác • {totalSeconds}s</Badge>
+
+        {/* Điểm chăm chỉ - hiển thị như matching */}
+        <div className="w-full p-4 rounded-2xl bg-white/70 border border-emerald-200">
+          <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">Điểm chăm chỉ nhận được</div>
+          <div className="text-4xl font-bold bg-gradient-to-r from-emerald-500 to-teal-500 bg-clip-text text-transparent">
+            +{points}
+          </div>
+          <div className="text-xs text-muted-foreground mt-1">
+            {perfect ? "Perfect bonus +200 • " : ""}
+            {user ? "Đã lưu vào bảng xếp hạng 🎉" : "Đăng nhập để lưu điểm lên bảng xếp hạng"}
+          </div>
+        </div>
+
         <div className="flex gap-3">
           <Button onClick={start} className="gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white">
             <RotateCcw className="h-4 w-4" /> Làm lại

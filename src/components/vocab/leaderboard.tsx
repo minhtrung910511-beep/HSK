@@ -93,7 +93,7 @@ export function Leaderboard() {
         {tab === "quiz" && (
           <ModuleBoard
             title="🏆 Bảng xếp hạng Quiz"
-            description="Top điểm cao nhất mỗi người - 10 câu trắc nghiệm (0-100 điểm)"
+            description="Top điểm cao nhất mỗi người - 10 câu trắc nghiệm • max(0, 1000 - thời_gian×5 + đúng×50) + 200 nếu perfect"
             rows={quiz}
             currentUserId={user?.id}
             loading={loading}
@@ -123,8 +123,8 @@ export function Leaderboard() {
           Cách tính điểm chăm chỉ
         </h3>
         <ul className="text-sm text-foreground/80 space-y-1">
-          <li>• <b>Quiz</b>: Điểm = (số câu đúng × 10) — tối đa 100 điểm/lần</li>
-          <li>• <b>Matching</b>: Điểm = max(0, 1000 - thời_gian×5 + mạng×100)</li>
+          <li>• <b>Quiz</b>: <code>max(0, 1000 - thời_gian×5 + đúng×50)</code> + bonus 200 nếu trả lời đúng hết 10 câu</li>
+          <li>• <b>Matching</b>: <code>max(0, 1000 - thời_gian×5 + mạng_còn×100)</code></li>
           <li>• <b>Flashcard</b>: Mỗi từ ôn lại được +1 điểm chăm chỉ</li>
           <li>• <b>Tổng điểm chăm chỉ</b> = Quiz + Matching + Flashcard (cộng dồn tất cả các lần chơi)</li>
         </ul>

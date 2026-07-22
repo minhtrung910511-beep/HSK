@@ -190,9 +190,7 @@ export default function HomePage() {
           >
             <Quiz
               onQuizComplete={(score) => recordQuizScore(score * 10)}
-              onServerSubmit={async (score, detail) => {
-                if (user) await submitScore("quiz", score * 10, detail);
-              }}
+              onScoreComputed={(points) => recordQuizScore(points)}
             />
           </motion.div>
         ) : tab === "matching" ? (
