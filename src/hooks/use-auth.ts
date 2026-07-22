@@ -8,6 +8,9 @@ export interface AuthUser {
   displayName: string;
 }
 
+// Event global để đồng bộ user state giữa các useAuth instance
+const AUTH_EVENT = "hsk1-auth-changed";
+
 export function useAuth() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
@@ -26,7 +29,16 @@ export function useAuth() {
 
   useEffect(() => {
     refresh();
+    // Lắng nghe event auth-changed để refresh khi instance khác login/logout
+    const handler = () => refresh();
+    window.addEventListener(AUTH_EVENT, handler);
+    return () => window.removeEventListener(AUTH_EVENT, handler);
   }, [refresh]);
+
+  // Helper: cập nhật state + broadcast event cho các instance khác
+  const broadcast = useCallback(() => {
+    window.dispatchEvent(new Event(AUTH_EVENT));
+  }, []);
 
   const login = useCallback(async (username: string, password: string) => {
     const res = await fetch("/api/auth/login", {
@@ -38,8 +50,9 @@ export function useAuth() {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "Đăng nhập thất bại");
     setUser(data.user);
+    broadcast();
     return data.user;
-  }, []);
+  }, [broadcast]);
 
   const register = useCallback(
     async (username: string, password: string, displayName: string) => {
@@ -52,9 +65,10 @@ export function useAuth() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Đăng ký thất bại");
       setUser(data.user);
+      broadcast();
       return data.user;
     },
-    []
+    [broadcast]
   );
 
   const logout = useCallback(async () => {
@@ -63,7 +77,8 @@ export function useAuth() {
       credentials: "same-origin",
     });
     setUser(null);
-  }, []);
+    broadcast();
+  }, [broadcast]);
 
   const submitScore = useCallback(
     async (module: "quiz" | "matching" | "flashcard_review", score: number, detail?: Record<string, unknown>) => {
@@ -89,7 +104,7 @@ export function useAuth() {
         return null;
       }
     },
-    [],
+    []
   );
 
   return { user, loading, login, register, logout, refresh, submitScore };
