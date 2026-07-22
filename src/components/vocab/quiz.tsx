@@ -14,6 +14,7 @@ type QuizMode = "han-to-vi" | "vi-to-han" | "pinyin-to-han";
 interface QuizProps {
   questionCount?: number;
   onQuizComplete?: (score: number, total: number) => void;
+  onServerSubmit?: (score: number, detail: { correct: number; total: number }) => Promise<unknown>;
 }
 
 interface Question {
@@ -47,7 +48,7 @@ function speak(text: string) {
   window.speechSynthesis.speak(utter);
 }
 
-export function Quiz({ questionCount = QUESTION_COUNT, onQuizComplete }: QuizProps) {
+export function Quiz({ questionCount = QUESTION_COUNT, onQuizComplete, onServerSubmit }: QuizProps) {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [current, setCurrent] = useState(0);
   const [selected, setSelected] = useState<string | null>(null);
@@ -129,11 +130,15 @@ export function Quiz({ questionCount = QUESTION_COUNT, onQuizComplete }: QuizPro
     if (phase === "result" && !completedRef.current && questions.length > 0) {
       completedRef.current = true;
       onQuizComplete?.(score, questions.length);
+      // Submit lên server nếu có
+      if (onServerSubmit) {
+        onServerSubmit(score, { correct: score, total: questions.length }).catch(() => {});
+      }
     }
     if (phase !== "result") {
       completedRef.current = false;
     }
-  }, [phase, score, questions.length, onQuizComplete]);
+  }, [phase, score, questions.length, onQuizComplete, onServerSubmit]);
 
   // ===== INTRO =====
   if (phase === "intro") {

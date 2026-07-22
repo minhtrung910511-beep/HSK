@@ -11,6 +11,7 @@ import { VOCAB, VocabWord } from "@/lib/vocab-data";
 interface MatchingProps {
   pairCount?: number;
   onComplete?: (score: number) => void;
+  onServerSubmit?: (score: number, detail: { time: number; lives: number }) => Promise<unknown>;
 }
 
 interface Cell {
@@ -34,7 +35,7 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
-export function Matching({ pairCount = DEFAULT_PAIR_COUNT, onComplete }: MatchingProps) {
+export function Matching({ pairCount = DEFAULT_PAIR_COUNT, onComplete, onServerSubmit }: MatchingProps) {
   const [phase, setPhase] = useState<"intro" | "playing" | "won" | "lost">("intro");
   const [cells, setCells] = useState<Cell[]>([]);
   const [matched, setMatched] = useState<Set<string>>(new Set());
@@ -96,11 +97,14 @@ export function Matching({ pairCount = DEFAULT_PAIR_COUNT, onComplete }: Matchin
       completedRef.current = true;
       const score = Math.max(0, 1000 - seconds * 5 + lives * 100);
       onComplete?.(score);
+      if (onServerSubmit) {
+        onServerSubmit(score, { time: seconds, lives }).catch(() => {});
+      }
     }
     if (phase !== "won") {
       completedRef.current = false;
     }
-  }, [phase, seconds, lives, onComplete]);
+  }, [phase, seconds, lives, onComplete, onServerSubmit]);
 
   const handleClick = (cell: Cell) => {
     if (matched.has(cell.id)) return;

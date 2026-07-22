@@ -1,13 +1,13 @@
 "use client";
 
-import { useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { Flame, BookOpen, Target, TrendingUp, Trophy, Zap, Clock, CheckCircle2 } from "lucide-react";
+import { Flame, BookOpen, Target, TrendingUp, Trophy, Zap, Clock, CheckCircle2, Crown } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { TOPICS, VOCAB, getWordsByTopic } from "@/lib/vocab-data";
+import { TOPICS, VOCAB } from "@/lib/vocab-data";
 import { ProgressData, getDueCards } from "@/lib/srs";
+import { useAuth } from "@/hooks/use-auth";
 
 interface DashboardProps {
   progress: ProgressData | null;
@@ -15,38 +15,54 @@ interface DashboardProps {
   onStartDue?: () => void;
 }
 
-interface StatCardProps {
-  icon: React.ReactNode;
-  label: string;
-  value: string | number;
-  sub?: string;
-  gradient: string;
-  iconBg: string;
+interface ServerStats {
+  total: number;
+  quizBest: number;
+  quizPlays: number;
+  matchingBest: number;
+  matchingPlays: number;
+  flashcardReviews: number;
+  flashcardWords: number;
+  recent: { module: string; score: number; detail: string | null; createdAt: string }[];
 }
 
-function StatCard({ icon, label, value, sub, gradient, iconBg }: StatCardProps) {
-  return (
-    <Card className={`p-4 md:p-5 border-0 bg-gradient-to-br ${gradient} text-white relative overflow-hidden`}>
-      <div className="flex items-start justify-between">
-        <div>
-          <div className="text-xs font-medium uppercase tracking-wider opacity-90">{label}</div>
-          <div className="text-3xl md:text-4xl font-bold mt-1">{value}</div>
-          {sub && <div className="text-xs opacity-80 mt-1">{sub}</div>}
-        </div>
-        <div className={`w-10 h-10 rounded-xl ${iconBg} flex items-center justify-center shrink-0`}>
-          {icon}
-        </div>
-      </div>
-    </Card>
-  );
+interface RankInfo {
+  rank: number;
+  totalUsers: number;
 }
 
 export function Dashboard({ progress, onTopicClick, onStartDue }: DashboardProps) {
+  const { user } = useAuth();
+  const [stats, setStats] = useState<ServerStats | null>(null);
+  const [rankInfo, setRankInfo] = useState<RankInfo | null>(null);
+
   const allWordIds = useMemo(() => VOCAB.map(w => w.id), []);
   const dueIds = useMemo(
     () => (progress ? getDueCards(progress, allWordIds) : []),
     [progress, allWordIds]
   );
+
+  const fetchStats = useCallback(async () => {
+    if (!user) return;
+    try {
+      const [meRes, lbRes] = await Promise.all([
+        fetch("/api/scores/me", { credentials: "same-origin" }),
+        fetch("/api/scores?limit=1000", { credentials: "same-origin" }),
+      ]);
+      const meData = await meRes.json();
+      if (meData.stats) setStats(meData.stats);
+      const lbData = await lbRes.json();
+      const lb: { userId: string }[] = lbData.leaderboard || [];
+      const idx = lb.findIndex((r) => r.userId === user.id);
+      setRankInfo({ rank: idx + 1, totalUsers: lb.length });
+    } catch (e) {
+      console.error("fetch stats failed", e);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    fetchStats();
+  }, [fetchStats]);
 
   const totalWords = VOCAB.length;
   const learnedCount = progress?.learnedWordIds.length ?? 0;
@@ -55,9 +71,8 @@ export function Dashboard({ progress, onTopicClick, onStartDue }: DashboardProps
     ? Math.round((progress.correctReviews / progress.totalReviews) * 100)
     : 0;
 
-  // 7 ngày gần nhất cho mini chart
   const last7Days = useMemo(() => {
-    const days: { label: string; studied: number; correct: number }[] = [];
+    const days: { label: string; studied: number }[] = [];
     const now = new Date();
     for (let i = 6; i >= 0; i--) {
       const d = new Date(now);
@@ -67,7 +82,6 @@ export function Dashboard({ progress, onTopicClick, onStartDue }: DashboardProps
       days.push({
         label: ["CN", "T2", "T3", "T4", "T5", "T6", "T7"][d.getDay()],
         studied: stat?.studied ?? 0,
-        correct: stat?.correct ?? 0,
       });
     }
     return days;
@@ -77,34 +91,60 @@ export function Dashboard({ progress, onTopicClick, onStartDue }: DashboardProps
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Hero - Tiến độ tổng */}
-      <Card className="p-6 md:p-8 border-0 bg-gradient-to-br from-violet-500 via-fuchsia-500 to-pink-500 text-white relative overflow-hidden">
+      {/* Hero - Tiến độ + Điểm chăm chỉ server */}
+      <Card className="p-6 md:p-8 border-0 bg-gradient-to-br from-violet-500 via-fuchsia-500 to-pink-500 text-white relative overflow-hidden shadow-lg">
         <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-white/10 blur-2xl" />
         <div className="absolute -bottom-10 -left-10 w-40 h-40 rounded-full bg-white/10 blur-2xl" />
         <div className="relative">
           <div className="flex items-center gap-2 mb-3">
-            <Target className="h-5 w-5" />
+            <span className="text-2xl">🎯</span>
             <span className="text-sm font-medium uppercase tracking-wider opacity-90">Mục tiêu HSK 1</span>
+            {user && (
+              <Badge className="ml-auto bg-white/25 text-white border-0 hover:bg-white/25">
+                👋 Xin chào, {user.displayName}
+              </Badge>
+            )}
           </div>
-          <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Tiến độ học */}
             <div>
+              <div className="text-xs font-medium uppercase tracking-wider opacity-80 mb-1">Tiến độ học</div>
               <div className="text-5xl md:text-6xl font-bold">{completionPct}%</div>
               <div className="text-sm opacity-90 mt-1">
-                Đã học <span className="font-bold">{learnedCount}</span> / {totalWords} từ vựng
+                Đã học <span className="font-bold">{learnedCount}</span> / {totalWords} từ
+              </div>
+              <div className="mt-3 h-3 rounded-full bg-white/20 overflow-hidden">
+                <div className="h-full bg-white rounded-full transition-all" style={{ width: `${completionPct}%` }} />
               </div>
             </div>
-            <div className="w-full md:w-1/2">
-              <Progress value={completionPct} className="h-3 bg-white/20 [&>div]:bg-white" />
-              <div className="flex justify-between text-xs mt-2 opacity-80">
-                <span>0</span>
-                <span>{totalWords} từ</span>
+            {/* Điểm chăm chỉ server */}
+            {user ? (
+              <div>
+                <div className="text-xs font-medium uppercase tracking-wider opacity-80 mb-1">Điểm chăm chỉ tổng</div>
+                <div className="text-5xl md:text-6xl font-bold flex items-center gap-2">
+                  <Flame className="h-10 w-10" />
+                  {(stats?.total ?? 0).toLocaleString()}
+                </div>
+                <div className="text-sm opacity-90 mt-1">
+                  {rankInfo?.rank && rankInfo.totalUsers > 0 ? (
+                    <>Xếp hạng <span className="font-bold">#{rankInfo.rank}</span> / {rankInfo.totalUsers} người</>
+                  ) : (
+                    "Bắt đầu chơi để có hạng!"
+                  )}
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="flex flex-col justify-center">
+                <div className="text-xs font-medium uppercase tracking-wider opacity-80 mb-1">Điểm chăm chỉ</div>
+                <div className="text-lg font-semibold mb-2">Đăng nhập để lưu điểm & xem xếp hạng</div>
+                <div className="text-sm opacity-90">Tiến độ hiện tại chỉ lưu trong trình duyệt.</div>
+              </div>
+            )}
           </div>
         </div>
       </Card>
 
-      {/* 4 stat cards */}
+      {/* Stats cards - 4 ô */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
         <StatCard
           icon={<Flame className="h-5 w-5 text-white" />}
@@ -123,20 +163,20 @@ export function Dashboard({ progress, onTopicClick, onStartDue }: DashboardProps
           sub="từ đến hạn hôm nay"
         />
         <StatCard
-          icon={<TrendingUp className="h-5 w-5 text-white" />}
-          iconBg="bg-emerald-500/30"
-          gradient="from-emerald-400 to-teal-400"
-          label="Độ chính xác"
-          value={`${accuracy}%`}
-          sub={`${progress?.totalReviews ?? 0} lần ôn`}
-        />
-        <StatCard
           icon={<Trophy className="h-5 w-5 text-white" />}
           iconBg="bg-violet-500/30"
           gradient="from-violet-400 to-fuchsia-400"
-          label="Điểm cao"
-          value={Math.max(progress?.quizHighScore ?? 0, progress?.matchingHighScore ?? 0)}
-          sub="Quiz / Matching"
+          label="Quiz best"
+          value={user ? (stats?.quizBest ?? 0) : (progress?.quizHighScore ?? 0)}
+          sub={user ? `${stats?.quizPlays ?? 0} lần chơi` : "đăng nhập để lưu"}
+        />
+        <StatCard
+          icon={<TrendingUp className="h-5 w-5 text-white" />}
+          iconBg="bg-emerald-500/30"
+          gradient="from-emerald-400 to-teal-400"
+          label="Matching best"
+          value={user ? (stats?.matchingBest ?? 0) : (progress?.matchingHighScore ?? 0)}
+          sub={user ? `${stats?.matchingPlays ?? 0} lần chơi` : "đăng nhập để lưu"}
         />
       </div>
 
@@ -167,7 +207,6 @@ export function Dashboard({ progress, onTopicClick, onStartDue }: DashboardProps
 
       {/* Biểu đồ 7 ngày + Chủ đề */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-        {/* 7-day chart */}
         <Card className="lg:col-span-2 p-5 border-0 bg-white shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold text-foreground flex items-center gap-2">
@@ -196,7 +235,6 @@ export function Dashboard({ progress, onTopicClick, onStartDue }: DashboardProps
           </div>
         </Card>
 
-        {/* Topic overview */}
         <Card className="lg:col-span-3 p-5 border-0 bg-white shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold text-foreground flex items-center gap-2">
@@ -207,7 +245,7 @@ export function Dashboard({ progress, onTopicClick, onStartDue }: DashboardProps
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-[260px] overflow-y-auto pr-1">
             {TOPICS.map(topic => {
-              const words = getWordsByTopic(topic.id);
+              const words = VOCAB.filter(w => w.topic === topic.id);
               const learned = words.filter(w => progress?.learnedWordIds.includes(w.id)).length;
               const pct = Math.round((learned / words.length) * 100);
               return (
@@ -232,6 +270,35 @@ export function Dashboard({ progress, onTopicClick, onStartDue }: DashboardProps
         </Card>
       </div>
 
+      {/* Hoạt động gần đây (chỉ khi đăng nhập) */}
+      {user && stats && stats.recent.length > 0 && (
+        <Card className="p-5 border-0 bg-white shadow-sm">
+          <h3 className="font-semibold mb-3 flex items-center gap-2">
+            <Crown className="h-4 w-4 text-amber-500" />
+            Hoạt động gần đây
+          </h3>
+          <div className="space-y-2 max-h-[200px] overflow-y-auto">
+            {stats.recent.map((r, i) => {
+              const labelMap: Record<string, { label: string; color: string }> = {
+                quiz: { label: "Quiz", color: "bg-violet-100 text-violet-700" },
+                matching: { label: "Matching", color: "bg-teal-100 text-teal-700" },
+                flashcard_review: { label: "Ôn flashcard", color: "bg-amber-100 text-amber-700" },
+              };
+              const info = labelMap[r.module] || { label: r.module, color: "bg-gray-100" };
+              return (
+                <div key={i} className="flex items-center gap-3 py-1.5 border-b border-dashed border-border last:border-0">
+                  <Badge className={`border-0 hover:opacity-90 ${info.color}`}>{info.label}</Badge>
+                  <span className="font-semibold">+{r.score} điểm</span>
+                  <span className="ml-auto text-xs text-muted-foreground">
+                    {new Date(r.createdAt).toLocaleString("vi-VN")}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      )}
+
       {/* Tips */}
       <Card className="p-5 border-0 bg-gradient-to-br from-sky-50 to-cyan-50">
         <h3 className="font-semibold text-foreground mb-3 flex items-center gap-2">
@@ -245,7 +312,7 @@ export function Dashboard({ progress, onTopicClick, onStartDue }: DashboardProps
           </li>
           <li className="flex items-start gap-2">
             <span className="text-sky-500">•</span>
-            <span>Ôn lại theo SRS đúng hạn để chuyển từ vựng vào trí nhớ dài hạn.</span>
+            <span>Ôn lại theo SRS đúng hạn để chuyển vào trí nhớ dài hạn.</span>
           </li>
           <li className="flex items-start gap-2">
             <span className="text-sky-500">•</span>
@@ -258,5 +325,36 @@ export function Dashboard({ progress, onTopicClick, onStartDue }: DashboardProps
         </ul>
       </Card>
     </div>
+  );
+}
+
+function StatCard({
+  icon,
+  label,
+  value,
+  sub,
+  gradient,
+  iconBg,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string | number;
+  sub?: string;
+  gradient: string;
+  iconBg: string;
+}) {
+  return (
+    <Card className={`p-4 md:p-5 border-0 bg-gradient-to-br ${gradient} text-white relative overflow-hidden`}>
+      <div className="flex items-start justify-between">
+        <div>
+          <div className="text-xs font-medium uppercase tracking-wider opacity-90">{label}</div>
+          <div className="text-3xl md:text-4xl font-bold mt-1">{value}</div>
+          {sub && <div className="text-xs opacity-80 mt-1">{sub}</div>}
+        </div>
+        <div className={`w-10 h-10 rounded-xl ${iconBg} flex items-center justify-center shrink-0`}>
+          {icon}
+        </div>
+      </div>
+    </Card>
   );
 }

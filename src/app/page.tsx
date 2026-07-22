@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { Home, Layers, HelpCircle, Shuffle, GraduationCap, Sparkles } from "lucide-react";
+import { Home, Layers, HelpCircle, Shuffle, GraduationCap, Trophy, LogIn, LogOut, User as UserIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -10,18 +10,22 @@ import { Dashboard } from "@/components/vocab/dashboard";
 import { Flashcard } from "@/components/vocab/flashcard";
 import { Quiz } from "@/components/vocab/quiz";
 import { Matching } from "@/components/vocab/matching";
-import { TopicPicker } from "@/components/vocab/topic-picker";
+import { AuthModal } from "@/components/vocab/auth-modal";
+import { Leaderboard } from "@/components/vocab/leaderboard";
 import { useProgress } from "@/hooks/use-progress";
-import { TOPICS, VOCAB, getTopic, TopicId } from "@/lib/vocab-data";
+import { useAuth } from "@/hooks/use-auth";
+import { TOPICS, VOCAB, TopicId } from "@/lib/vocab-data";
 import { getDueCards } from "@/lib/srs";
 
-type Tab = "home" | "flashcard" | "quiz" | "matching";
+type Tab = "home" | "flashcard" | "quiz" | "matching" | "leaderboard";
 type FlashcardScope = "all" | "due" | TopicId;
 
 export default function HomePage() {
   const [tab, setTab] = useState<Tab>("home");
   const [scope, setScope] = useState<FlashcardScope>("all");
+  const [authOpen, setAuthOpen] = useState(false);
   const { progress, hydrated, grade, markLearnedWord, recordQuizScore, recordMatchingScore, reset } = useProgress();
+  const { user, loading: authLoading, login, register, logout, submitScore } = useAuth();
 
   const allWordIds = useMemo(() => VOCAB.map(w => w.id), []);
   const dueIds = useMemo(
@@ -40,45 +44,76 @@ export default function HomePage() {
   };
 
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
-    { id: "home",      label: "Trang chủ",  icon: <Home className="h-5 w-5" /> },
-    { id: "flashcard", label: "Flashcard",  icon: <Layers className="h-5 w-5" /> },
-    { id: "quiz",      label: "Quiz",       icon: <HelpCircle className="h-5 w-5" /> },
-    { id: "matching",  label: "Ghép cặp",   icon: <Shuffle className="h-5 w-5" /> },
+    { id: "home",        label: "Trang chủ",   icon: <Home className="h-5 w-5" /> },
+    { id: "flashcard",   label: "Flashcard",   icon: <Layers className="h-5 w-5" /> },
+    { id: "quiz",        label: "Quiz",        icon: <HelpCircle className="h-5 w-5" /> },
+    { id: "matching",    label: "Ghép cặp",    icon: <Shuffle className="h-5 w-5" /> },
+    { id: "leaderboard", label: "Xếp hạng",    icon: <Trophy className="h-5 w-5" /> },
   ];
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-violet-50 via-rose-50 to-amber-50">
       {/* Header */}
       <header className="sticky top-0 z-40 backdrop-blur-md bg-white/70 border-b border-white/40">
-        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-rose-500 via-fuchsia-500 to-violet-500 flex items-center justify-center shadow-md">
+        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-rose-500 via-fuchsia-500 to-violet-500 flex items-center justify-center shadow-md shrink-0">
               <GraduationCap className="h-6 w-6 text-white" />
             </div>
-            <div>
+            <div className="min-w-0">
               <h1 className="text-lg md:text-xl font-bold bg-gradient-to-r from-rose-600 via-fuchsia-600 to-violet-600 bg-clip-text text-transparent leading-tight">
                 HSK1 Tiếng Trung
               </h1>
-              <p className="text-xs text-muted-foreground hidden sm:block">Học từ vựng dễ nhớ • 150 từ HSK 1.0</p>
+              <p className="text-xs text-muted-foreground hidden sm:block truncate">Học từ vựng dễ nhớ • 150 từ HSK 1.0</p>
             </div>
           </div>
 
-          <nav className="flex items-center gap-1 bg-white/60 rounded-xl p-1 border border-white/60 shadow-sm">
-            {tabs.map(t => (
-              <button
-                key={t.id}
-                onClick={() => setTab(t.id)}
-                className={`relative flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                  tab === t.id
-                    ? "bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white shadow"
-                    : "text-muted-foreground hover:text-foreground hover:bg-white/70"
-                }`}
+          <div className="flex items-center gap-2">
+            {/* User menu */}
+            {!authLoading && user ? (
+              <div className="flex items-center gap-2">
+                <Badge className="bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white border-0 hover:opacity-90 hidden sm:flex">
+                  <UserIcon className="h-3 w-3 mr-1" />
+                  {user.displayName}
+                </Badge>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={logout}
+                  className="text-muted-foreground hover:text-rose-600 gap-1"
+                >
+                  <LogOut className="h-4 w-4" />
+                  <span className="hidden sm:inline">Đăng xuất</span>
+                </Button>
+              </div>
+            ) : !authLoading ? (
+              <Button
+                size="sm"
+                onClick={() => setAuthOpen(true)}
+                className="gap-1 bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white hover:opacity-90"
               >
-                {t.icon}
-                <span className="hidden sm:inline">{t.label}</span>
-              </button>
-            ))}
-          </nav>
+                <LogIn className="h-4 w-4" />
+                <span className="hidden sm:inline">Đăng nhập</span>
+              </Button>
+            ) : null}
+
+            <nav className="flex items-center gap-1 bg-white/60 rounded-xl p-1 border border-white/60 shadow-sm">
+              {tabs.map(t => (
+                <button
+                  key={t.id}
+                  onClick={() => setTab(t.id)}
+                  className={`relative flex items-center gap-2 px-2.5 sm:px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                    tab === t.id
+                      ? "bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white shadow"
+                      : "text-muted-foreground hover:text-foreground hover:bg-white/70"
+                  }`}
+                >
+                  {t.icon}
+                  <span className="hidden md:inline">{t.label}</span>
+                </button>
+              ))}
+            </nav>
+          </div>
         </div>
       </header>
 
@@ -136,7 +171,13 @@ export default function HomePage() {
             <Flashcard
               topicId={scope}
               dueWordIds={dueIds}
-              onGrade={grade}
+              onGrade={(wordId, g) => {
+                grade(wordId, g);
+                // Submit lên server nếu user đăng nhập - mỗi từ ôn +1 điểm chăm chỉ
+                if (user && g >= 3) {
+                  submitScore("flashcard_review", 1, { wordId, grade: g }).catch(() => {});
+                }
+              }}
               onMarkLearned={markLearnedWord}
             />
           </motion.div>
@@ -147,7 +188,12 @@ export default function HomePage() {
             transition={{ duration: 0.3 }}
             className="max-w-3xl mx-auto"
           >
-            <Quiz onQuizComplete={(score) => recordQuizScore(score * 10)} />
+            <Quiz
+              onQuizComplete={(score) => recordQuizScore(score * 10)}
+              onServerSubmit={async (score, detail) => {
+                if (user) await submitScore("quiz", score * 10, detail);
+              }}
+            />
           </motion.div>
         ) : tab === "matching" ? (
           <motion.div
@@ -156,7 +202,20 @@ export default function HomePage() {
             transition={{ duration: 0.3 }}
             className="max-w-3xl mx-auto"
           >
-            <Matching onComplete={recordMatchingScore} />
+            <Matching
+              onComplete={recordMatchingScore}
+              onServerSubmit={async (score, detail) => {
+                if (user) await submitScore("matching", score, detail);
+              }}
+            />
+          </motion.div>
+        ) : tab === "leaderboard" ? (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <Leaderboard />
           </motion.div>
         ) : null}
 
@@ -168,7 +227,7 @@ export default function HomePage() {
               size="sm"
               className="text-xs text-muted-foreground"
               onClick={() => {
-                if (confirm("Xóa toàn bộ tiến độ học tập? Hành động này không thể hoàn tác.")) {
+                if (confirm("Xóa toàn bộ tiến độ học tập trong trình duyệt? Hành động này không thể hoàn tác.")) {
                   reset();
                 }
               }}
@@ -183,12 +242,21 @@ export default function HomePage() {
       <footer className="mt-auto border-t border-white/40 bg-white/40 backdrop-blur py-4">
         <div className="max-w-6xl mx-auto px-4 text-center text-xs text-muted-foreground">
           <p className="flex items-center justify-center gap-1.5">
-            <Sparkles className="h-3.5 w-3.5 text-violet-500" />
-            HSK1 Vocabulary • 150 từ • SRS + Flashcard + Quiz + Matching
+            <span>✨</span> HSK1 Vocabulary • 150 từ • SRS + Flashcard + Quiz + Matching + Leaderboard
           </p>
-          <p className="mt-1 opacity-70">Dữ liệu học tập được lưu trong trình duyệt của bạn</p>
+          <p className="mt-1 opacity-70">
+            {user ? `Đã đăng nhập: ${user.displayName}` : "Tiến độ học lưu trong trình duyệt. Đăng nhập để lưu & xếp hạng."}
+          </p>
         </div>
       </footer>
+
+      {/* Auth Modal */}
+      <AuthModal
+        open={authOpen}
+        onClose={() => setAuthOpen(false)}
+        onLogin={login}
+        onRegister={register}
+      />
     </div>
   );
 }
