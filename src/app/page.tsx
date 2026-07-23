@@ -119,9 +119,13 @@ export default function HomePage() {
               {tabs.map(t => (
                 <button
                   key={t.id}
-                  onClick={() => setTab(t.id)}
+                  onClick={() => {
+                    setTab(t.id);
+                    // Thoát ôn tập nếu đang ở ôn tập
+                    if (reviewTopic) setReviewTopic(null);
+                  }}
                   className={`relative flex items-center gap-2 px-2.5 sm:px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                    tab === t.id
+                    tab === t.id && !reviewTopic
                       ? "bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white shadow"
                       : "text-muted-foreground hover:text-foreground hover:bg-white/70"
                   }`}

@@ -34,19 +34,43 @@ export async function POST(req: NextRequest) {
 }
 
 // GET: lấy leaderboard tổng (chăm chỉ) - tổng điểm tất cả module của mỗi user
+// Query params:
+//   module: "quiz" | "matching" | undefined (undefined = all = diligence)
+//   limit: số user tối đa trả về
+//   range: "all" | "daily" | "weekly" | "monthly" (filter theo thời gian)
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const scoreModule = url.searchParams.get("module"); // "quiz" | "matching" | null (=all = diligence)
   const limit = Math.max(1, Math.min(parseInt(url.searchParams.get("limit") || "100", 10), 1000));
+  const range = url.searchParams.get("range") || "all"; // all | daily | weekly | monthly
+
+  // Tính thời điểm bắt đầu dựa trên range
+  let since: Date | undefined;
+  if (range === "daily") {
+    // Đầu ngày hôm nay (00:00:00)
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    since = d;
+  } else if (range === "weekly") {
+    // 7 ngày trước
+    const d = new Date();
+    d.setDate(d.getDate() - 7);
+    since = d;
+  } else if (range === "monthly") {
+    // Đầu tháng này
+    const d = new Date();
+    d.setDate(1);
+    d.setHours(0, 0, 0, 0);
+    since = d;
+  }
+
+  const timeFilter = since ? { createdAt: { gte: since } } : {};
 
   try {
     if (scoreModule) {
-      // Leaderboard theo module - top score của MỖI user
-      // Bước 1: Lấy tất cả scores của module này (không limit để không bị mất user)
-      // Bước 2: Group theo userId, lấy score cao nhất của mỗi user
-      // Bước 3: Sort + take limit
+      // Leaderboard theo module - top score của MỖI user (trong khoảng thời gian)
       const allRows = await db.score.findMany({
-        where: { module: scoreModule },
+        where: { module: scoreModule, ...timeFilter },
         include: { user: { select: { username: true, displayName: true } } },
         orderBy: { score: "desc" },
       });
@@ -79,9 +103,10 @@ export async function GET(req: NextRequest) {
         }));
       return NextResponse.json({ leaderboard: result });
     } else {
-      // Leaderboard chăm chỉ - tổng điểm + số lần chơi của mỗi user
+      // Leaderboard chăm chỉ - tổng điểm + số lần chơi của mỗi user (trong khoảng thời gian)
       const rows = await db.score.groupBy({
         by: ["userId"],
+        where: timeFilter,
         _sum: { score: true },
         _count: { id: true },
         orderBy: { _sum: { score: "desc" } },

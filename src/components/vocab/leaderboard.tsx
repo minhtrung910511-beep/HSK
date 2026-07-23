@@ -2,13 +2,14 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Trophy, Crown, Medal, Flame, Zap, Target, RefreshCw } from "lucide-react";
+import { Trophy, Crown, Medal, Flame, Zap, Target, RefreshCw, Calendar } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
 
 type Tab = "diligence" | "quiz" | "matching";
+type Range = "daily" | "weekly" | "monthly" | "all";
 
 interface DiligenceRow {
   rank: number;
@@ -31,6 +32,7 @@ interface ModuleRow {
 export function Leaderboard() {
   const { user } = useAuth();
   const [tab, setTab] = useState<Tab>("diligence");
+  const [range, setRange] = useState<Range>("all");
   const [diligence, setDiligence] = useState<DiligenceRow[]>([]);
   const [quiz, setQuiz] = useState<ModuleRow[]>([]);
   const [matching, setMatching] = useState<ModuleRow[]>([]);
@@ -39,27 +41,27 @@ export function Leaderboard() {
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
-      // Lấy tối đa 500 users (đủ cho mọi trường hợp thực tế)
+      const rangeQuery = range !== "all" ? `&range=${range}` : "";
       const [d, q, m] = await Promise.all([
-        fetch("/api/scores?limit=500").then((r) => r.json()),
-        fetch("/api/scores?module=quiz&limit=500").then((r) => r.json()),
-        fetch("/api/scores?module=matching&limit=500").then((r) => r.json()),
+        fetch(`/api/scores?limit=500${rangeQuery}`).then((r) => r.json()),
+        fetch(`/api/scores?module=quiz&limit=500${rangeQuery}`).then((r) => r.json()),
+        fetch(`/api/scores?module=matching&limit=500${rangeQuery}`).then((r) => r.json()),
       ]);
       setDiligence(d.leaderboard || []);
       setQuiz(q.leaderboard || []);
       setMatching(m.leaderboard || []);
     } catch (e) {
-      // "Failed to fetch" thường xảy ra khi user reload/chuyển tab giữa chừng
+      // ignore
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [range]);
 
   useEffect(() => {
     fetchAll();
   }, [fetchAll]);
 
-  // Auto-refresh mỗi 5 giây để bắt điểm mới
+  // Auto-refresh mỗi 5 giây
   useEffect(() => {
     const interval = setInterval(() => {
       fetchAll();
@@ -67,7 +69,7 @@ export function Leaderboard() {
     return () => clearInterval(interval);
   }, [fetchAll]);
 
-  // Refresh khi tab được hiển thị lại (user quay lại từ tab khác)
+  // Refresh khi tab được hiển thị lại
   useEffect(() => {
     const handler = () => {
       if (!document.hidden) fetchAll();
@@ -82,10 +84,17 @@ export function Leaderboard() {
     { id: "matching",  label: "Matching Top", icon: <Zap className="h-4 w-4" />,   gradient: "from-teal-400 to-cyan-400" },
   ];
 
+  const ranges: { id: Range; label: string }[] = [
+    { id: "daily",   label: "Hôm nay" },
+    { id: "weekly",  label: "Tuần này" },
+    { id: "monthly", label: "Tháng này" },
+    { id: "all",     label: "Tất cả" },
+  ];
+
   return (
     <div className="flex flex-col gap-4">
-      {/* Tabs */}
-      <div className="flex gap-2 flex-wrap">
+      {/* Tabs - module */}
+      <div className="flex gap-2 flex-wrap items-center">
         {tabs.map((t) => (
           <button
             key={t.id}
@@ -104,6 +113,27 @@ export function Leaderboard() {
           <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
         </Button>
       </div>
+
+      {/* Range tabs - thời gian */}
+      <Card className="p-3 border-0 bg-white/70 backdrop-blur shadow-sm">
+        <div className="flex items-center gap-2 flex-wrap">
+          <Calendar className="h-4 w-4 text-muted-foreground" />
+          <span className="text-xs font-medium text-muted-foreground mr-1">Khoảng thời gian:</span>
+          {ranges.map((r) => (
+            <button
+              key={r.id}
+              onClick={() => setRange(r.id)}
+              className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
+                range === r.id
+                  ? "bg-gradient-to-r from-indigo-500 to-violet-500 text-white shadow"
+                  : "bg-white text-foreground border border-border hover:bg-indigo-50 hover:border-indigo-300"
+              }`}
+            >
+              {r.label}
+            </button>
+          ))}
+        </div>
+      </Card>
 
       {/* Bảng xếp hạng */}
       <Card className="p-4 md:p-6 border-0 bg-white shadow-sm">
