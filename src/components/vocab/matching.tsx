@@ -55,7 +55,7 @@ export function Matching({ pairCount = DEFAULT_PAIR_COUNT, onComplete, onServerS
       side: "han",
       text: w.han,
       pinyin: w.pinyin,
-      emoji: w.emoji,
+      emoji: w.emoji || w.meaning, // Fallback: nếu không có emoji, dùng meaning
     }));
     const viCells: Cell[] = pool.map(w => ({
       id: `v-${w.id}`,
