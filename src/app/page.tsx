@@ -199,6 +199,21 @@ export default function HomePage() {
                   );
                 })}
               </div>
+              {/* Nút ôn tập chủ đề đang chọn */}
+              {scope !== "all" && scope !== "due" && (
+                <div className="mt-3 pt-3 border-t border-dashed border-border flex items-center justify-between gap-2 flex-wrap">
+                  <span className="text-xs text-muted-foreground">
+                    Đang xem chủ đề: <b>{TOPICS.find(t => t.id === scope)?.emoji} {TOPICS.find(t => t.id === scope)?.name}</b>
+                  </span>
+                  <Button
+                    size="sm"
+                    onClick={() => setReviewTopic(scope as TopicId)}
+                    className="gap-1 bg-gradient-to-r from-indigo-500 to-violet-500 text-white hover:opacity-90"
+                  >
+                    📝 Ôn tập chủ đề này
+                  </Button>
+                </div>
+              )}
             </Card>
 
             <Flashcard

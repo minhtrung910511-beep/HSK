@@ -65,6 +65,19 @@ export function TopicReview({ topicId, onExit, onServerSubmit, onComplete }: Top
   const completedRef = useRef(false);
   const submittedRef = useRef(false);
 
+  // Wrapper exit: reset state trước khi gọi onExit để lần sau mở lại không bị lỗi
+  const handleExit = useCallback(() => {
+    setQuestions([]);
+    setCurrent(0);
+    setSelected(null);
+    setScore(0);
+    setTimeLeft(TIME_LIMIT);
+    setPhase("intro");
+    completedRef.current = false;
+    submittedRef.current = false;
+    onExit();
+  }, [onExit]);
+
   const generateQuiz = useCallback(() => {
     if (allTopicWords.length === 0) return;
 
@@ -161,7 +174,7 @@ export function TopicReview({ topicId, onExit, onServerSubmit, onComplete }: Top
     return (
       <Card className="p-8 flex flex-col items-center gap-6 text-center bg-gradient-to-br from-indigo-100 via-violet-50 to-fuchsia-100 border-0">
         <button
-          onClick={onExit}
+          onClick={handleExit}
           className="self-start text-sm text-muted-foreground hover:text-foreground flex items-center gap-1"
         >
           <ArrowLeft className="h-4 w-4" /> Quay lại
@@ -227,7 +240,7 @@ export function TopicReview({ topicId, onExit, onServerSubmit, onComplete }: Top
           <Button onClick={start} className="gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white">
             <RotateCcw className="h-4 w-4" /> Làm lại
           </Button>
-          <Button variant="outline" onClick={onExit} className="gap-2">
+          <Button variant="outline" onClick={handleExit} className="gap-2">
             <ArrowLeft className="h-4 w-4" /> Quay lại
           </Button>
         </div>
@@ -249,7 +262,7 @@ export function TopicReview({ topicId, onExit, onServerSubmit, onComplete }: Top
       {/* Header */}
       <div className="flex items-center justify-between gap-4">
         <button
-          onClick={onExit}
+          onClick={handleExit}
           className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1"
         >
           <ArrowLeft className="h-4 w-4" /> Thoát

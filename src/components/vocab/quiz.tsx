@@ -284,9 +284,6 @@ export function Quiz({ questionCount = QUESTION_COUNT, onQuizComplete, onScoreCo
             </Button>
           )}
         </div>
-        {q.mode === "han-to-vi" && (
-          <div className="text-base italic text-muted-foreground">{q.word.pinyin}</div>
-        )}
         {q.mode === "vi-to-han" && (
           <div className="text-sm text-muted-foreground">{q.word.emoji} {q.word.pos}</div>
         )}
