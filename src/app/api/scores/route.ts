@@ -37,31 +37,45 @@ export async function POST(req: NextRequest) {
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const scoreModule = url.searchParams.get("module"); // "quiz" | "matching" | null (=all = diligence)
-  const limit = Math.min(parseInt(url.searchParams.get("limit") || "20", 10), 100);
+  const limit = Math.max(1, Math.min(parseInt(url.searchParams.get("limit") || "100", 10), 1000));
 
   try {
     if (scoreModule) {
-      // Leaderboard theo module - top score của mỗi user
-      const rows = await db.score.findMany({
+      // Leaderboard theo module - top score của MỖI user
+      // Bước 1: Lấy tất cả scores của module này (không limit để không bị mất user)
+      // Bước 2: Group theo userId, lấy score cao nhất của mỗi user
+      // Bước 3: Sort + take limit
+      const allRows = await db.score.findMany({
         where: { module: scoreModule },
         include: { user: { select: { username: true, displayName: true } } },
         orderBy: { score: "desc" },
-        take: limit,
       });
-      const seen = new Set<string>();
-      const result = rows
-        .filter((r) => {
-          if (seen.has(r.userId)) return false;
-          seen.add(r.userId);
-          return true;
-        })
+
+      // Group by userId - giữ score cao nhất (đã sort desc nên gặp đầu tiên là cao nhất)
+      const userBestMap = new Map<string, { userId: string; username: string; displayName: string; score: number; at: Date }>();
+      for (const r of allRows) {
+        if (!userBestMap.has(r.userId)) {
+          userBestMap.set(r.userId, {
+            userId: r.userId,
+            username: r.user.username,
+            displayName: r.user.displayName,
+            score: r.score,
+            at: r.createdAt,
+          });
+        }
+      }
+
+      // Convert to array, sort by score desc, take limit
+      const result = Array.from(userBestMap.values())
+        .sort((a, b) => b.score - a.score)
+        .slice(0, limit)
         .map((r, i) => ({
           rank: i + 1,
           userId: r.userId,
-          username: r.user.username,
-          displayName: r.user.displayName,
+          username: r.username,
+          displayName: r.displayName,
           score: r.score,
-          at: r.createdAt,
+          at: r.at,
         }));
       return NextResponse.json({ leaderboard: result });
     } else {
