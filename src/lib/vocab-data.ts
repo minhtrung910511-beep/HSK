@@ -41,6 +41,7 @@ export type TopicId =
   | "verbs"
   | "adjectives"
   | "places"
+  | "people"
   | "misc";
 
 export interface Topic {
@@ -63,7 +64,8 @@ export const TOPICS: Topic[] = [
   { id: "verbs",       name: "Động từ",       emoji: "🏃", color: "from-sky-400 to-blue-400",        description: "Các hành động phổ biến" },
   { id: "adjectives",  name: "Tính từ",       emoji: "✨", color: "from-violet-400 to-purple-400",   description: "Mô tả tính chất sự vật" },
   { id: "places",      name: "Nơi chốn",      emoji: "🏛️", color: "from-fuchsia-400 to-pink-400",   description: "Địa điểm & phương hướng" },
-  { id: "misc",        name: "Bổ sung",       emoji: "📚", color: "from-slate-400 to-gray-400",      description: "Từ vựng bổ sung theo bài học" },
+  { id: "people",      name: "Con người",     emoji: "👥", color: "from-indigo-400 to-violet-400",   description: "Nghề nghiệp & mối quan hệ xã hội" },
+  { id: "misc",        name: "Khác",          emoji: "📚", color: "from-slate-400 to-gray-400",      description: "Trợ từ, ngôn ngữ & từ vựng bổ sung" },
 ];
 
 export const VOCAB: VocabWord[] = [
@@ -106,10 +108,10 @@ export const VOCAB: VocabWord[] = [
   { id: 32, han: "儿子",   pinyin: "érzi",        meaning: "Con trai",            pos: "Danh từ",   emoji: "👶", example: "他们的儿子很聪明。",      examplePinyin: "Tāmen de érzi hěn cōngming.",       exampleVi: "Con trai họ rất thông minh.", topic: "family" },
   { id: 33, han: "女儿",   pinyin: "nǚ’ér",        meaning: "Con gái",             pos: "Danh từ",   emoji: "👶", example: "女儿喜欢唱歌。",          examplePinyin: "Nǚ'ér xǐhuan chàng gē.",            exampleVi: "Con gái thích hát.", topic: "family" },
   { id: 34, han: "家",     pinyin: "jiā",          meaning: "Nhà",      pos: "Danh từ",   emoji: "🏠", example: "我家在北京。",            examplePinyin: "Wǒ jiā zài Běijīng.",               exampleVi: "Nhà tôi ở Bắc Kinh.", topic: "family" },
-  { id: 35, han: "孩子",   pinyin: "hái zi",       meaning: "đứa trẻ / con cái",   pos: "Danh từ",   emoji: "🧒", example: "孩子们在玩儿。",          examplePinyin: "Háizimen zài wánr.",                exampleVi: "Các em đang chơi.", topic: "family" },
-  { id: 36, han: "先生",   pinyin: "xiānsheng",   meaning: "Ông, ngài",  pos: "Danh từ",   emoji: "🤵", example: "王先生是医生。",          examplePinyin: "Wáng xiānsheng shì yīshēng.",       exampleVi: "Ông Vương là bác sĩ.", topic: "family" },
-  { id: 37, han: "太太",   pinyin: "tài tai",      meaning: "bà / phu nhân / vợ",  pos: "Danh từ",   emoji: "👰", example: "李太太很热情。",          examplePinyin: "Lǐ tàitai hěn rèqíng.",             exampleVi: "Bà Lý rất nhiệt tình.", topic: "family" },
-  { id: 38, han: "小姐",   pinyin: "xiǎojiě",     meaning: "Tiểu thư",       pos: "Danh từ",   emoji: "💁‍♀️", example: "小姐，请喝茶。",        examplePinyin: "Xiǎojie, qǐng hē chá.",             exampleVi: "Cô ơi, mời uống trà.", topic: "family" },
+  { id: 35, han: "孩子",   pinyin: "hái zi",       meaning: "đứa trẻ / con cái",   pos: "Danh từ",   emoji: "🧒", example: "孩子们在玩儿。",          examplePinyin: "Háizimen zài wánr.",                exampleVi: "Các em đang chơi.", topic: "people" },
+  { id: 36, han: "先生",   pinyin: "xiānsheng",   meaning: "Ông, ngài",  pos: "Danh từ",   emoji: "🤵", example: "王先生是医生。",          examplePinyin: "Wáng xiānsheng shì yīshēng.",       exampleVi: "Ông Vương là bác sĩ.", topic: "people" },
+  { id: 37, han: "太太",   pinyin: "tài tai",      meaning: "bà / phu nhân / vợ",  pos: "Danh từ",   emoji: "👰", example: "李太太很热情。",          examplePinyin: "Lǐ tàitai hěn rèqíng.",             exampleVi: "Bà Lý rất nhiệt tình.", topic: "people" },
+  { id: 38, han: "小姐",   pinyin: "xiǎojiě",     meaning: "Tiểu thư",       pos: "Danh từ",   emoji: "💁‍♀️", example: "小姐，请喝茶。",        examplePinyin: "Xiǎojie, qǐng hē chá.",             exampleVi: "Cô ơi, mời uống trà.", topic: "people" },
 
   // ===== 4. SỐ ĐẾM & LƯỢNG TỪ (17 từ) =====
   { id: 39, han: "一",     pinyin: "yī",           meaning: "một",                 pos: "Số từ",     emoji: "1️⃣", example: "我有一个苹果。",         examplePinyin: "Wǒ yǒu yí ge píngguǒ.",             exampleVi: "Tôi có một quả táo.", topic: "numbers" },
@@ -241,34 +243,34 @@ export const VOCAB: VocabWord[] = [
   // ===== TỪ VỰNG BỔ SUNG TỪ FILE HK1 (theo bài học) =====
   // --- Bài 3 ---
   { id: 151, han: "叫", pinyin: "jiào", meaning: "gọi, kêu", pos: "Động từ", emoji: "📢", example: "小鸟在树上叫。", examplePinyin: "xiǎo niǎo zài shù shàng jiào", exampleVi: "Chim nhỏ kêu trên cây.", topic: "pronouns" },
-  { id: 152, han: "名字", pinyin: "míngzi", meaning: "Tên , họ tên", pos: "Danh từ", emoji: "🏷️", example: "你的名字是什么？", examplePinyin: "nǐ de míngzi shì shénme", exampleVi: "Tên của bạn là gì?", topic: "pronouns" },
-  { id: 153, han: "老师", pinyin: "lǎoshī", meaning: "Giáo viên, thầy giáo, cô giáo", pos: "Danh từ", emoji: "👨‍🏫", example: "老师正在教我们中文。", examplePinyin: "lǎoshī zhèngzài jiào wǒmen zhōngwén", exampleVi: "Thầy/cô giáo đang dạy chúng tôi tiếng Trung.", topic: "pronouns" },
-  { id: 154, han: "吗", pinyin: "ma", meaning: "...không? , …à?", pos: "Phó từ", emoji: "❓", example: "你好吗？", examplePinyin: "nǐ hǎo ma", exampleVi: "Bạn khỏe không?", topic: "pronouns" },
-  { id: 155, han: "学生", pinyin: "xuéshēng", meaning: "học sinh", pos: "Danh từ", emoji: "🎓", example: "他是学生。", examplePinyin: "tā shì xuéshēng", exampleVi: "Anh ấy là học sinh.", topic: "pronouns" },
-  { id: 156, han: "人", pinyin: "rén", meaning: "người", pos: "Danh từ", emoji: "🧑", example: "很多人喜欢喝茶。", examplePinyin: "hěn duō rén xǐhuān hē chá", exampleVi: "Nhiều người thích uống trà.", topic: "pronouns" },
-  { id: 157, han: "越南", pinyin: "Yuènán", meaning: "Việt Nam", pos: "Danh từ", emoji: "🇻🇳", example: "越南有很多美丽的海滩。", examplePinyin: "Yuènán yǒu hěn duō měilì de hǎitān。", exampleVi: "Việt Nam có nhiều bãi biển đẹp.", topic: "pronouns" },
-  { id: 158, han: "中国", pinyin: "Zhōngguó", meaning: "Trung Quốc", pos: "Danh từ", emoji: "🇨🇳", example: "中国的长城很壮观。", examplePinyin: "Zhōngguó de Chángchéng hěn zhuàngguān。", exampleVi: "Vạn lý Trường Thành của Trung Quốc rất壮观。", topic: "pronouns" },
-  { id: 159, han: "美国", pinyin: "Měiguó", meaning: "Mỹ", pos: "Danh từ", emoji: "🇺🇸", example: "美国有很多著名大学。", examplePinyin: "Měiguó yǒu hěn duō zhùmíng dàxué。", exampleVi: "Mỹ có nhiều trường đại học nổi tiếng.", topic: "pronouns" },
-  { id: 160, han: "俄罗斯", pinyin: "Éluósī", meaning: "Nga", pos: "Danh từ", emoji: "🇷🇺", example: "俄罗斯很大。", examplePinyin: "Éluósī hěn dà.", exampleVi: "Nga rất rộng lớn.", topic: "pronouns" },
+  { id: 152, han: "名字", pinyin: "míngzi", meaning: "Tên , họ tên", pos: "Danh từ", emoji: "🏷️", example: "你的名字是什么？", examplePinyin: "nǐ de míngzi shì shénme", exampleVi: "Tên của bạn là gì?", topic: "people" },
+  { id: 153, han: "老师", pinyin: "lǎoshī", meaning: "Giáo viên, thầy giáo, cô giáo", pos: "Danh từ", emoji: "👨‍🏫", example: "老师正在教我们中文。", examplePinyin: "lǎoshī zhèngzài jiào wǒmen zhōngwén", exampleVi: "Thầy/cô giáo đang dạy chúng tôi tiếng Trung.", topic: "people" },
+  { id: 154, han: "吗", pinyin: "ma", meaning: "...không? , …à?", pos: "Phó từ", emoji: "❓", example: "你好吗？", examplePinyin: "nǐ hǎo ma", exampleVi: "Bạn khỏe không?", topic: "misc" },
+  { id: 155, han: "学生", pinyin: "xuéshēng", meaning: "học sinh", pos: "Danh từ", emoji: "🎓", example: "他是学生。", examplePinyin: "tā shì xuéshēng", exampleVi: "Anh ấy là học sinh.", topic: "people" },
+  { id: 156, han: "人", pinyin: "rén", meaning: "người", pos: "Danh từ", emoji: "🧑", example: "很多人喜欢喝茶。", examplePinyin: "hěn duō rén xǐhuān hē chá", exampleVi: "Nhiều người thích uống trà.", topic: "people" },
+  { id: 157, han: "越南", pinyin: "Yuènán", meaning: "Việt Nam", pos: "Danh từ", emoji: "🇻🇳", example: "越南有很多美丽的海滩。", examplePinyin: "Yuènán yǒu hěn duō měilì de hǎitān。", exampleVi: "Việt Nam có nhiều bãi biển đẹp.", topic: "places" },
+  { id: 158, han: "中国", pinyin: "Zhōngguó", meaning: "Trung Quốc", pos: "Danh từ", emoji: "🇨🇳", example: "中国的长城很壮观。", examplePinyin: "Zhōngguó de Chángchéng hěn zhuàngguān。", exampleVi: "Vạn lý Trường Thành của Trung Quốc rất壮观。", topic: "places" },
+  { id: 159, han: "美国", pinyin: "Měiguó", meaning: "Mỹ", pos: "Danh từ", emoji: "🇺🇸", example: "美国有很多著名大学。", examplePinyin: "Měiguó yǒu hěn duō zhùmíng dàxué。", exampleVi: "Mỹ có nhiều trường đại học nổi tiếng.", topic: "places" },
+  { id: 160, han: "俄罗斯", pinyin: "Éluósī", meaning: "Nga", pos: "Danh từ", emoji: "🇷🇺", example: "俄罗斯很大。", examplePinyin: "Éluósī hěn dà.", exampleVi: "Nga rất rộng lớn.", topic: "places" },
   // --- Bài 4 ---
-  { id: 161, han: "的", pinyin: "de", meaning: "(Trợ từ)", pos: "Trợ từ", emoji: "🔗", example: "这是我的书。", examplePinyin: "Zhè shì wǒ de shū。", exampleVi: "Đây là sách của tôi.", topic: "pronouns" },
-  { id: 162, han: "汉语", pinyin: "Hànyǔ", meaning: "Tiếng Trung", pos: "Danh từ", emoji: "🀄", example: "我学习汉语。", examplePinyin: "Wǒ xuéxí Hànyǔ。", exampleVi: "Tôi học tiếng Trung.", topic: "pronouns" },
-  { id: 163, han: "国", pinyin: "guó", meaning: "Nước, quốc gia", pos: "Danh từ", emoji: "🏴", example: "中国是一个美丽的国家。", examplePinyin: "zhōng guó shì yī gè měi lì de guó jiā", exampleVi: "Trung Quốc là một quốc gia đẹp.", topic: "pronouns" },
-  { id: 164, han: "呢", pinyin: "ne", meaning: "Trợ từ", pos: "Trợ từ", emoji: "🤔", example: "你今天去哪里呢？", examplePinyin: "nǐ jīn tiān qù nǎ lǐ ne", exampleVi: "Hôm nay bạn đi đâu vậy?", topic: "pronouns" },
-  { id: 165, han: "同学", pinyin: "tóng xué", meaning: "Bạn học", pos: "Danh từ", emoji: "👫", example: "我的同学很聪明。", examplePinyin: "wǒ de tóng xué hěn cōng míng", exampleVi: "Bạn học của tôi rất thông minh.", topic: "pronouns" },
-  { id: 166, han: "朋友", pinyin: "péngyou", meaning: "Bạn bè", pos: "Danh từ", emoji: "👥", example: "我有很多朋友。", examplePinyin: "wǒ yǒu hěn duō péngyou。", exampleVi: "Tôi có nhiều bạn bè.", topic: "pronouns" },
+  { id: 161, han: "的", pinyin: "de", meaning: "(Trợ từ)", pos: "Trợ từ", emoji: "🔗", example: "这是我的书。", examplePinyin: "Zhè shì wǒ de shū。", exampleVi: "Đây là sách của tôi.", topic: "misc" },
+  { id: 162, han: "汉语", pinyin: "Hànyǔ", meaning: "Tiếng Trung", pos: "Danh từ", emoji: "🀄", example: "我学习汉语。", examplePinyin: "Wǒ xuéxí Hànyǔ。", exampleVi: "Tôi học tiếng Trung.", topic: "misc" },
+  { id: 163, han: "国", pinyin: "guó", meaning: "Nước, quốc gia", pos: "Danh từ", emoji: "🏴", example: "中国是一个美丽的国家。", examplePinyin: "zhōng guó shì yī gè měi lì de guó jiā", exampleVi: "Trung Quốc là một quốc gia đẹp.", topic: "places" },
+  { id: 164, han: "呢", pinyin: "ne", meaning: "Trợ từ", pos: "Trợ từ", emoji: "🤔", example: "你今天去哪里呢？", examplePinyin: "nǐ jīn tiān qù nǎ lǐ ne", exampleVi: "Hôm nay bạn đi đâu vậy?", topic: "misc" },
+  { id: 165, han: "同学", pinyin: "tóng xué", meaning: "Bạn học", pos: "Danh từ", emoji: "👫", example: "我的同学很聪明。", examplePinyin: "wǒ de tóng xué hěn cōng míng", exampleVi: "Bạn học của tôi rất thông minh.", topic: "people" },
+  { id: 166, han: "朋友", pinyin: "péngyou", meaning: "Bạn bè", pos: "Danh từ", emoji: "👥", example: "我有很多朋友。", examplePinyin: "wǒ yǒu hěn duō péngyou。", exampleVi: "Tôi có nhiều bạn bè.", topic: "people" },
   // --- Bài 5 ---
-  { id: 167, han: "有", pinyin: "yǒu", meaning: "Có", pos: "Danh từ", emoji: "✅", example: "他有钱。", examplePinyin: "tā yǒu qián。", exampleVi: "Anh ấy có tiền.", topic: "numbers" },
+  { id: 167, han: "有", pinyin: "yǒu", meaning: "Có", pos: "Danh từ", emoji: "✅", example: "他有钱。", examplePinyin: "tā yǒu qián。", exampleVi: "Anh ấy có tiền.", topic: "verbs" },
   { id: 168, han: "口", pinyin: "kǒu", meaning: "Lượng từ chỉ người", pos: "Lượng từ", emoji: "👄", example: "我家有三口人。", examplePinyin: "wǒ jiā yǒu sān kǒu rén。", exampleVi: "Gia đình tôi có ba người.", topic: "numbers" },
   { id: 169, han: "几", pinyin: "jǐ", meaning: "Mấy? (hỏi số lượng bao nhiêu)", pos: "Số từ", emoji: "🔢", example: "你有几个苹果？", examplePinyin: "nǐ yǒu jǐ gè píng guǒ", exampleVi: "Bạn có mấy quả táo?", topic: "numbers" },
-  { id: 170, han: "了", pinyin: "le", meaning: "Động từ +了: Nhấn mạnh hành động xong xuôi. 了 nằm cuối câu: Nhấn mạnh trạng thái thay đổi.", pos: "Trợ từ", emoji: "✓", example: "我吃了饭。", examplePinyin: "wǒ chī le fàn", exampleVi: "Tôi đã ăn cơm.", topic: "numbers" },
-  { id: 171, han: "了", pinyin: "le", meaning: "了nằm cuối câu: Nhấn mạnh trạng thái thay đổi", pos: "Trợ từ", emoji: "✓", example: "下雨了。", examplePinyin: "xià yǔ le", exampleVi: "Trời mưa rồi.", topic: "numbers" },
-  { id: 172, han: "今年", pinyin: "jīnnián", meaning: "Năm nay", pos: "Danh từ", emoji: "🗓️", example: "今年我二十岁。", examplePinyin: "jīn nián wǒ èr shí suì", exampleVi: "Năm nay tôi hai mươi tuổi.", topic: "numbers" },
+  { id: 170, han: "了", pinyin: "le", meaning: "Động từ +了: Nhấn mạnh hành động xong xuôi. 了 nằm cuối câu: Nhấn mạnh trạng thái thay đổi.", pos: "Trợ từ", emoji: "✓", example: "我吃了饭。", examplePinyin: "wǒ chī le fàn", exampleVi: "Tôi đã ăn cơm.", topic: "misc" },
+  { id: 171, han: "了", pinyin: "le", meaning: "了nằm cuối câu: Nhấn mạnh trạng thái thay đổi", pos: "Trợ từ", emoji: "✓", example: "下雨了。", examplePinyin: "xià yǔ le", exampleVi: "Trời mưa rồi.", topic: "misc" },
+  { id: 172, han: "今年", pinyin: "jīnnián", meaning: "Năm nay", pos: "Danh từ", emoji: "🗓️", example: "今年我二十岁。", examplePinyin: "jīn nián wǒ èr shí suì", exampleVi: "Năm nay tôi hai mươi tuổi.", topic: "time" },
   // --- Bài 6 ---
   { id: 173, han: "很", pinyin: "hěn", meaning: "Rất", pos: "Phó từ", emoji: "✨", example: "今天天气很好。", examplePinyin: "jīn tiān tiān qì hěn hǎo", exampleVi: "Hôm nay thời tiết rất tốt.", topic: "verbs" },
   { id: 174, han: "好吃", pinyin: "hǎochī", meaning: "Ngon", pos: "Động từ", emoji: "😋", example: "这个包子很好吃。", examplePinyin: "zhè ge bāozi hěn hǎochī", exampleVi: "Bánh bao này rất ngon.", topic: "verbs" },
-  { id: 175, han: "汉字", pinyin: "hànzì", meaning: "Hán tự", pos: "Danh từ", emoji: "🀄", example: "汉字很难学。", examplePinyin: "hànzì hěn nán xué", exampleVi: "Hán tự rất khó học.", topic: "verbs" },
-  { id: 176, han: "字", pinyin: "zì", meaning: "Chữ", pos: "Danh từ", emoji: "🔤", example: "这个字怎么写？", examplePinyin: "zhège zì zěnme xiě", exampleVi: "Chữ này viết thế nào?", topic: "verbs" },
+  { id: 175, han: "汉字", pinyin: "hànzì", meaning: "Hán tự", pos: "Danh từ", emoji: "🀄", example: "汉字很难学。", examplePinyin: "hànzì hěn nán xué", exampleVi: "Hán tự rất khó học.", topic: "misc" },
+  { id: 176, han: "字", pinyin: "zì", meaning: "Chữ", pos: "Danh từ", emoji: "🔤", example: "这个字怎么写？", examplePinyin: "zhège zì zěnme xiě", exampleVi: "Chữ này viết thế nào?", topic: "misc" },
   // --- Bài 7 ---
   { id: 177, han: "问", pinyin: "wèn", meaning: "Hỏi", pos: "Động từ", emoji: "❓", example: "我可以问你一个问题吗？", examplePinyin: "wǒ kěyǐ wèn nǐ yí gè wèntí ma", exampleVi: "Tôi có thể hỏi bạn một câu được không?", topic: "verbs" },
   { id: 178, han: "答", pinyin: "dá", meaning: "Trả lời", pos: "Động từ", emoji: "💬", example: "请回答问题。", examplePinyin: "qǐng huí dá wèn tí", exampleVi: "Vui lòng trả lời câu hỏi.", topic: "verbs" },
@@ -350,7 +352,7 @@ export const VOCAB: VocabWord[] = [
   { id: 248, han: "给", pinyin: "gěi", meaning: "Đưa, cho", pos: "Danh từ", emoji: "", example: "请给我一杯水。", examplePinyin: "qǐng gěi wǒ yī bēi shuǐ", exampleVi: "Cho tôi một ly nước.", topic: "adjectives" },
   { id: 249, han: "送", pinyin: "sòng", meaning: "Tặng, gửi", pos: "Danh từ", emoji: "", example: "我送你一本书。", examplePinyin: "wǒ sòng nǐ yī běn shū", exampleVi: "Tặng bạn một cuốn sách.", topic: "adjectives" },
   { id: 250, han: "打电话", pinyin: "dǎ diànhuà", meaning: "Gọi điện thoại", pos: "Danh từ", emoji: "", example: "我每天打电话给妈妈。", examplePinyin: "wǒ měi tiān dǎ diànhuà gěi māma", exampleVi: "Tôi gọi điện cho mẹ mỗi ngày.", topic: "adjectives" },
-  { id: 251, han: "吧", pinyin: "ba", meaning: "Trợ từ ngữ khí dùng ở cuối câu dể diễn tả sự thương lượng, lời đề nghị thỉnh cầu hay mệnh lệnh", pos: "Trợ từ", emoji: "", example: "我们去看电影吧。", examplePinyin: "wǒmen qù kàn diànyǐng ba", exampleVi: "Chúng ta đi xem phim nhé.", topic: "adjectives" },
+  { id: 251, han: "吧", pinyin: "ba", meaning: "Trợ từ ngữ khí dùng ở cuối câu dể diễn tả sự thương lượng, lời đề nghị thỉnh cầu hay mệnh lệnh", pos: "Trợ từ", emoji: "", example: "我们去看电影吧。", examplePinyin: "wǒmen qù kàn diànyǐng ba", exampleVi: "Chúng ta đi xem phim nhé.", topic: "misc" },
   // --- Bài 14 ---
   { id: 252, han: "东西", pinyin: "dōngxi", meaning: "Đồ, đồ đạc", pos: "Danh từ", emoji: "", example: "我的房间里有很多东西。", examplePinyin: "wǒ de fángjiān lǐ yǒu hěn duō dōngxi", exampleVi: "Phòng tôi có rất nhiều đồ đạc.", topic: "places" },
   { id: 253, han: "一点儿", pinyin: "yīdiǎnr", meaning: "Một ít, một chút", pos: "Số từ", emoji: "", example: "我吃一点儿米饭。", examplePinyin: "wǒ chī yīdiǎnr mǐfàn", exampleVi: "Tôi ăn một chút cơm.", topic: "places" },
