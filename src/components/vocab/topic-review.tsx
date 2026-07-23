@@ -285,7 +285,7 @@ export function TopicReview({ topicId, onExit, onServerSubmit, onComplete }: Top
             </Button>
           )}
         </div>
-        {(q.mode === "han-to-pinyin" || q.mode === "han-to-meaning") && (
+        {(q.mode === "han-to-meaning") && (
           <div className="text-base italic text-muted-foreground">{q.word.pinyin}</div>
         )}
         {q.mode === "meaning-to-han" && (
