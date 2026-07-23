@@ -13,6 +13,7 @@ interface DashboardProps {
   progress: ProgressData | null;
   onTopicClick?: (topicId: string) => void;
   onStartDue?: () => void;
+  onReviewTopic?: (topicId: string) => void;
 }
 
 interface ServerStats {
@@ -31,7 +32,7 @@ interface RankInfo {
   totalUsers: number;
 }
 
-export function Dashboard({ progress, onTopicClick, onStartDue }: DashboardProps) {
+export function Dashboard({ progress, onTopicClick, onStartDue, onReviewTopic }: DashboardProps) {
   const { user } = useAuth();
   const [stats, setStats] = useState<ServerStats | null>(null);
   const [rankInfo, setRankInfo] = useState<RankInfo | null>(null);
@@ -267,21 +268,37 @@ export function Dashboard({ progress, onTopicClick, onStartDue }: DashboardProps
               const learned = words.filter(w => progress?.learnedWordIds.includes(w.id)).length;
               const pct = Math.round((learned / words.length) * 100);
               return (
-                <button
+                <div
                   key={topic.id}
-                  onClick={() => onTopicClick?.(topic.id)}
-                  className={`text-left rounded-xl p-3 bg-gradient-to-br ${topic.color} text-white hover:scale-[1.02] transition-transform`}
+                  className={`relative rounded-xl p-3 bg-gradient-to-br ${topic.color} text-white hover:scale-[1.02] transition-transform`}
                 >
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-lg">{topic.emoji}</span>
-                    <span className="text-xs font-medium opacity-90">{pct}%</span>
-                  </div>
-                  <div className="font-semibold text-sm leading-tight">{topic.name}</div>
-                  <div className="text-xs opacity-90">{learned}/{words.length} từ</div>
-                  <div className="h-1 rounded-full bg-white/30 mt-1.5 overflow-hidden">
-                    <div className="h-full bg-white rounded-full" style={{ width: `${pct}%` }} />
-                  </div>
-                </button>
+                  <button
+                    onClick={() => onTopicClick?.(topic.id)}
+                    className="w-full text-left"
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-lg">{topic.emoji}</span>
+                      <span className="text-xs font-medium opacity-90">{pct}%</span>
+                    </div>
+                    <div className="font-semibold text-sm leading-tight">{topic.name}</div>
+                    <div className="text-xs opacity-90">{learned}/{words.length} từ</div>
+                    <div className="h-1 rounded-full bg-white/30 mt-1.5 overflow-hidden">
+                      <div className="h-full bg-white rounded-full" style={{ width: `${pct}%` }} />
+                    </div>
+                  </button>
+                  {onReviewTopic && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onReviewTopic(topic.id);
+                      }}
+                      className="mt-2 w-full px-2 py-1 rounded-lg bg-white/25 hover:bg-white/40 text-xs font-medium transition-colors flex items-center justify-center gap-1"
+                      title={`Ôn tập chủ đề ${topic.name}`}
+                    >
+                      📝 Ôn tập
+                    </button>
+                  )}
+                </div>
               );
             })}
           </div>

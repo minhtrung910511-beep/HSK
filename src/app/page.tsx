@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { Home, Layers, HelpCircle, Shuffle, GraduationCap, Trophy, LogIn, LogOut, User as UserIcon, Pencil } from "lucide-react";
+import { Home, Layers, HelpCircle, Shuffle, GraduationCap, Trophy, LogIn, LogOut, User as UserIcon, Pencil, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +13,7 @@ import { Matching } from "@/components/vocab/matching";
 import { AuthModal } from "@/components/vocab/auth-modal";
 import { EditProfileModal } from "@/components/vocab/edit-profile-modal";
 import { Leaderboard } from "@/components/vocab/leaderboard";
+import { TopicReview } from "@/components/vocab/topic-review";
 import { useProgress } from "@/hooks/use-progress";
 import { useAuth } from "@/hooks/use-auth";
 import { TOPICS, VOCAB, TopicId } from "@/lib/vocab-data";
@@ -26,6 +27,7 @@ export default function HomePage() {
   const [scope, setScope] = useState<FlashcardScope>("all");
   const [authOpen, setAuthOpen] = useState(false);
   const [editProfileOpen, setEditProfileOpen] = useState(false);
+  const [reviewTopic, setReviewTopic] = useState<TopicId | null>(null);
   const { progress, hydrated, grade, markLearnedWord, recordQuizScore, recordMatchingScore, reset } = useProgress();
   const { user, loading: authLoading, login, register, logout, submitScore, updateProfile } = useAuth();
 
@@ -43,6 +45,10 @@ export default function HomePage() {
   const handleTopicClick = (topicId: string) => {
     setScope(topicId as TopicId);
     setTab("flashcard");
+  };
+
+  const handleReviewTopic = (topicId: string) => {
+    setReviewTopic(topicId as TopicId);
   };
 
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
@@ -135,13 +141,28 @@ export default function HomePage() {
           <div className="flex items-center justify-center py-32">
             <div className="animate-spin w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full" />
           </div>
+        ) : reviewTopic ? (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+            className="max-w-3xl mx-auto"
+          >
+            <TopicReview
+              topicId={reviewTopic}
+              onExit={() => setReviewTopic(null)}
+              onServerSubmit={async (points, detail) => {
+                if (user) await submitScore("flashcard_review", points, detail);
+              }}
+            />
+          </motion.div>
         ) : tab === "home" ? (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
           >
-            <Dashboard progress={progress} onTopicClick={handleTopicClick} onStartDue={startDue} />
+            <Dashboard progress={progress} onTopicClick={handleTopicClick} onStartDue={startDue} onReviewTopic={handleReviewTopic} />
           </motion.div>
         ) : tab === "flashcard" ? (
           <motion.div
