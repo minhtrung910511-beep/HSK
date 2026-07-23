@@ -39,17 +39,17 @@ export function Leaderboard() {
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
+      // Lấy tối đa 500 users (đủ cho mọi trường hợp thực tế)
       const [d, q, m] = await Promise.all([
-        fetch("/api/scores?limit=20").then((r) => r.json()),
-        fetch("/api/scores?module=quiz&limit=20").then((r) => r.json()),
-        fetch("/api/scores?module=matching&limit=20").then((r) => r.json()),
+        fetch("/api/scores?limit=500").then((r) => r.json()),
+        fetch("/api/scores?module=quiz&limit=500").then((r) => r.json()),
+        fetch("/api/scores?module=matching&limit=500").then((r) => r.json()),
       ]);
       setDiligence(d.leaderboard || []);
       setQuiz(q.leaderboard || []);
       setMatching(m.leaderboard || []);
     } catch (e) {
       // "Failed to fetch" thường xảy ra khi user reload/chuyển tab giữa chừng
-      // → im lặng bỏ qua, không log ra console
     } finally {
       setLoading(false);
     }
@@ -162,6 +162,18 @@ function DiligenceBoard({
   currentUserId?: string;
   loading: boolean;
 }) {
+  const PAGE_SIZE = 10;
+  const [page, setPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const start = (safePage - 1) * PAGE_SIZE;
+  const pageRows = rows.slice(start, start + PAGE_SIZE);
+
+  // Reset page khi rows đổi
+  useEffect(() => {
+    setPage(1);
+  }, [rows.length]);
+
   if (loading && rows.length === 0) return <LoadingSkeleton />;
   if (rows.length === 0) {
     return (
@@ -175,19 +187,33 @@ function DiligenceBoard({
     <div>
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-bold">🔥 Bảng xếp hạng Chăm chỉ</h3>
-        <Badge variant="secondary">{rows.length} người</Badge>
+        <Badge variant="secondary">{rows.length} người • Trang {safePage}/{totalPages}</Badge>
       </div>
       <div className="space-y-2">
-        {rows.map((r, i) => (
-          <DiligenceRow key={r.userId} row={r} isMe={r.userId === currentUserId} top3={i < 3} />
-        ))}
+        {pageRows.map((r) => {
+          const globalRank = start + pageRows.indexOf(r) + 1;
+          return (
+            <DiligenceRowItem
+              key={r.userId}
+              row={r}
+              rank={globalRank}
+              isMe={r.userId === currentUserId}
+              top3={globalRank <= 3}
+            />
+          );
+        })}
       </div>
+      <Pagination
+        page={safePage}
+        totalPages={totalPages}
+        onChange={setPage}
+      />
     </div>
   );
 }
 
-function DiligenceRow({ row, isMe, top3 }: { row: DiligenceRow; isMe: boolean; top3: boolean }) {
-  const medal = row.rank === 1 ? "🥇" : row.rank === 2 ? "🥈" : row.rank === 3 ? "🥉" : null;
+function DiligenceRowItem({ row, rank, isMe, top3 }: { row: DiligenceRow; rank: number; isMe: boolean; top3: boolean }) {
+  const medal = rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : null;
   return (
     <motion.div
       initial={{ opacity: 0, x: -10 }}
@@ -201,7 +227,7 @@ function DiligenceRow({ row, isMe, top3 }: { row: DiligenceRow; isMe: boolean; t
       }`}
     >
       <div className="w-10 h-10 flex items-center justify-center rounded-full bg-muted font-bold shrink-0">
-        {medal || <span className="text-sm">#{row.rank}</span>}
+        {medal || <span className="text-sm">#{rank}</span>}
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
@@ -241,19 +267,35 @@ function ModuleBoard({
   gradient: string;
   emptyText: string;
 }) {
+  const PAGE_SIZE = 10;
+  const [page, setPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const start = (safePage - 1) * PAGE_SIZE;
+  const pageRows = rows.slice(start, start + PAGE_SIZE);
+
+  // Reset page khi rows đổi
+  useEffect(() => {
+    setPage(1);
+  }, [rows.length]);
+
   if (loading && rows.length === 0) return <LoadingSkeleton />;
   if (rows.length === 0) {
     return <EmptyState title="Chưa có dữ liệu" subtitle={emptyText} />;
   }
   return (
     <div>
-      <div className="mb-4">
-        <h3 className="text-lg font-bold">{title}</h3>
-        <p className="text-sm text-muted-foreground">{description}</p>
+      <div className="mb-4 flex items-start justify-between gap-2 flex-wrap">
+        <div>
+          <h3 className="text-lg font-bold">{title}</h3>
+          <p className="text-sm text-muted-foreground">{description}</p>
+        </div>
+        <Badge variant="secondary">{rows.length} người • Trang {safePage}/{totalPages}</Badge>
       </div>
       <div className="space-y-2">
-        {rows.map((r) => {
-          const medal = r.rank === 1 ? "🥇" : r.rank === 2 ? "🥈" : r.rank === 3 ? "🥉" : null;
+        {pageRows.map((r, i) => {
+          const globalRank = start + i + 1;
+          const medal = globalRank === 1 ? "🥇" : globalRank === 2 ? "🥈" : globalRank === 3 ? "🥉" : null;
           const isMe = r.userId === currentUserId;
           return (
             <motion.div
@@ -263,13 +305,13 @@ function ModuleBoard({
               className={`flex items-center gap-3 p-3 rounded-xl transition-colors ${
                 isMe
                   ? "bg-gradient-to-r from-violet-100 to-fuchsia-100 border-2 border-violet-300"
-                  : r.rank <= 3
+                  : globalRank <= 3
                   ? "bg-amber-50/50"
                   : "hover:bg-muted/50"
               }`}
             >
               <div className="w-10 h-10 flex items-center justify-center rounded-full bg-muted font-bold shrink-0">
-                {medal || <span className="text-sm">#{r.rank}</span>}
+                {medal || <span className="text-sm">#{globalRank}</span>}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
@@ -292,6 +334,65 @@ function ModuleBoard({
           );
         })}
       </div>
+      <Pagination
+        page={safePage}
+        totalPages={totalPages}
+        onChange={setPage}
+      />
+    </div>
+  );
+}
+
+// Component phân trang dùng chung
+function Pagination({
+  page,
+  totalPages,
+  onChange,
+}: {
+  page: number;
+  totalPages: number;
+  onChange: (p: number) => void;
+}) {
+  if (totalPages <= 1) return null;
+  return (
+    <div className="flex items-center justify-center gap-2 mt-5 pt-4 border-t border-dashed border-border">
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => onChange(1)}
+        disabled={page === 1}
+        className="gap-1"
+      >
+        « Đầu
+      </Button>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => onChange(Math.max(1, page - 1))}
+        disabled={page === 1}
+      >
+        ← Trước
+      </Button>
+      <span className="text-sm font-medium px-3 py-1 rounded-lg bg-muted">
+        {page} / {totalPages}
+      </span>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => onChange(Math.min(totalPages, page + 1))}
+        disabled={page === totalPages}
+      >
+        Sau →
+      </Button>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => onChange(totalPages)}
+        disabled={page === totalPages}
+        className="gap-1"
+      >
+        Cuối »
+      </Button>
     </div>
   );
 }
