@@ -251,7 +251,6 @@ export function Matching({ pairCount = DEFAULT_PAIR_COUNT, onComplete, onServerS
             >
               {cell.side === "han" ? (
                 <>
-                  <div className="text-3xl">{cell.emoji}</div>
                   <div className="text-2xl md:text-3xl font-bold">{cell.text}</div>
                   {!isMatched && (
                     <div className={`text-xs italic ${isSelected ? "text-white/80" : "text-muted-foreground"}`}>
