@@ -116,6 +116,22 @@ export function useAuth() {
     broadcast();
   }, [broadcast]);
 
+  const updateProfile = useCallback(
+    async (newDisplayName: string) => {
+      const res = await authFetch("/api/auth/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ displayName: newDisplayName }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Cập nhật thất bại");
+      setUser(data.user);
+      broadcast();
+      return data.user;
+    },
+    []
+  );
+
   const submitScore = useCallback(
     async (module: "quiz" | "matching" | "flashcard_review", score: number, detail?: Record<string, unknown>) => {
       try {
@@ -135,5 +151,5 @@ export function useAuth() {
     []
   );
 
-  return { user, loading, login, register, logout, refresh, submitScore };
+  return { user, loading, login, register, logout, refresh, submitScore, updateProfile };
 }

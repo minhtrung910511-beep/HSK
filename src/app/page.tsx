@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { Home, Layers, HelpCircle, Shuffle, GraduationCap, Trophy, LogIn, LogOut, User as UserIcon } from "lucide-react";
+import { Home, Layers, HelpCircle, Shuffle, GraduationCap, Trophy, LogIn, LogOut, User as UserIcon, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +11,7 @@ import { Flashcard } from "@/components/vocab/flashcard";
 import { Quiz } from "@/components/vocab/quiz";
 import { Matching } from "@/components/vocab/matching";
 import { AuthModal } from "@/components/vocab/auth-modal";
+import { EditProfileModal } from "@/components/vocab/edit-profile-modal";
 import { Leaderboard } from "@/components/vocab/leaderboard";
 import { useProgress } from "@/hooks/use-progress";
 import { useAuth } from "@/hooks/use-auth";
@@ -24,8 +25,9 @@ export default function HomePage() {
   const [tab, setTab] = useState<Tab>("home");
   const [scope, setScope] = useState<FlashcardScope>("all");
   const [authOpen, setAuthOpen] = useState(false);
+  const [editProfileOpen, setEditProfileOpen] = useState(false);
   const { progress, hydrated, grade, markLearnedWord, recordQuizScore, recordMatchingScore, reset } = useProgress();
-  const { user, loading: authLoading, login, register, logout, submitScore } = useAuth();
+  const { user, loading: authLoading, login, register, logout, submitScore, updateProfile } = useAuth();
 
   const allWordIds = useMemo(() => VOCAB.map(w => w.id), []);
   const dueIds = useMemo(
@@ -71,11 +73,21 @@ export default function HomePage() {
           <div className="flex items-center gap-2">
             {/* User menu */}
             {!authLoading && user ? (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
                 <Badge className="bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white border-0 hover:opacity-90 hidden sm:flex">
                   <UserIcon className="h-3 w-3 mr-1" />
                   {user.displayName}
                 </Badge>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setEditProfileOpen(true)}
+                  className="text-muted-foreground hover:text-violet-600 gap-1 px-2"
+                  title="Đổi tên hiển thị"
+                >
+                  <Pencil className="h-4 w-4" />
+                  <span className="hidden md:inline">Đổi tên</span>
+                </Button>
                 <Button
                   variant="ghost"
                   size="sm"
@@ -254,6 +266,18 @@ export default function HomePage() {
         onClose={() => setAuthOpen(false)}
         onLogin={login}
         onRegister={register}
+      />
+
+      {/* Edit Profile Modal */}
+      <EditProfileModal
+        open={editProfileOpen}
+        onClose={() => setEditProfileOpen(false)}
+        currentDisplayName={user?.displayName || ""}
+        onSave={async (newName) => {
+          await updateProfile(newName);
+          // Reload để đồng bộ tất cả component (header, dashboard, leaderboard)
+          setTimeout(() => window.location.reload(), 100);
+        }}
       />
     </div>
   );
