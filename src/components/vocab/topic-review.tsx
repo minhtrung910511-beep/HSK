@@ -285,9 +285,6 @@ export function TopicReview({ topicId, onExit, onServerSubmit, onComplete }: Top
             </Button>
           )}
         </div>
-        {(q.mode === "han-to-meaning") && (
-          <div className="text-base italic text-muted-foreground">{q.word.pinyin}</div>
-        )}
         {q.mode === "meaning-to-han" && (
           <div className="text-sm text-muted-foreground">{q.word.emoji} {q.word.pos}</div>
         )}
