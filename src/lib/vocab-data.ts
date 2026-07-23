@@ -149,7 +149,7 @@ export const VOCAB: VocabWord[] = [
 
   // ===== 6. ĐỒ VẬT (16 từ) =====
   { id: 72, han: "书",     pinyin: "shū",          meaning: "sách",                pos: "Danh từ",   emoji: "📚", example: "这是一本好书。",         examplePinyin: "Zhè shì yì běn hǎo shū.",            exampleVi: "Đây là một quyển sách hay.", topic: "objects" },
-  { id: 73, han: "桌子",   pinyin: "zhuō zi",      meaning: "bàn",                 pos: "Danh từ",   emoji: "🪑", example: "桌子上有书。",           examplePinyin: "Zhuōzi shàng yǒu shū.",             exampleVi: "Trên bàn có sách.", topic: "objects" },
+  { id: 73, han: "桌子",   pinyin: "zhuō zi",      meaning: "bàn",                 pos: "Danh từ",   emoji: "🍽️", example: "桌子上有书。",           examplePinyin: "Zhuōzi shàng yǒu shū.",             exampleVi: "Trên bàn có sách.", topic: "objects" },
   { id: 74, han: "椅子",   pinyin: "yǐ zi",        meaning: "ghế",                 pos: "Danh từ",   emoji: "🪑", example: "请坐在椅子上。",         examplePinyin: "Qǐng zuò zài yǐzi shàng.",          exampleVi: "Xin ngồi trên ghế.", topic: "objects" },
   { id: 75, han: "杯子",   pinyin: "bēi zi",       meaning: "cái cốc",             pos: "Danh từ",   emoji: "🥤", example: "杯子里有水。",           examplePinyin: "Bēizi lǐ yǒu shuǐ.",                exampleVi: "Trong cốc có nước.", topic: "objects" },
   { id: 76, han: "电脑",   pinyin: "diàn nǎo",     meaning: "máy tính",            pos: "Danh từ",   emoji: "💻", example: "我要买电脑。",           examplePinyin: "Wǒ yào mǎi diànnǎo.",               exampleVi: "Tôi muốn mua máy tính.", topic: "objects" },
