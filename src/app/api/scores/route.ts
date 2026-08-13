@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
     }
     const body = await req.json();
     const scoreModule = (body.module || "").toString(); // "quiz" | "matching" | "flashcard_review"
-    const score = parseInt(body.score, 10);
+    const score = Math.floor(parseFloat(body.score) * 10) / 10;
     const detail = body.detail ? JSON.stringify(body.detail) : null;
 
     if (!["quiz", "matching", "flashcard_review"].includes(scoreModule)) {

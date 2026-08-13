@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { VOCAB, VocabWord } from "@/lib/vocab-data";
+import { VocabWord } from "@/lib/vocab-data";
+import { useVocab } from "@/lib/vocab-context";
 import { useAuth } from "@/hooks/use-auth";
 
 type QuizMode = "han-to-vi" | "vi-to-han" | "pinyin-to-han";
@@ -45,7 +46,8 @@ const TIME_LIMIT = 15; // giây / câu
 function computeQuizPoints(correct: number, total: number, totalSeconds: number): number {
   // Bonus: đúng hết (perfect) +200
   const perfectBonus = correct === total ? 200 : 0;
-  return Math.max(0, 1000 - totalSeconds * 5 + correct * 50 + perfectBonus);
+  const raw = Math.max(0, 1000 - totalSeconds * 5 + correct * 50 + perfectBonus);
+  return Math.floor(raw * 10) / 10;
 }
 
 function speak(text: string) {
@@ -62,6 +64,7 @@ function speak(text: string) {
 
 export function Quiz({ questionCount = QUESTION_COUNT, onQuizComplete, onScoreComputed }: QuizProps) {
   const { user, loading: authLoading, submitScore } = useAuth();
+  const vocab = useVocab();
   const [questions, setQuestions] = useState<Question[]>([]);
   const [current, setCurrent] = useState(0);
   const [selected, setSelected] = useState<string | null>(null);
@@ -71,16 +74,17 @@ export function Quiz({ questionCount = QUESTION_COUNT, onQuizComplete, onScoreCo
   const [answeredCount, setAnsweredCount] = useState(0);
   // Track tổng thời gian chơi quiz (giây)
   const [totalSeconds, setTotalSeconds] = useState(0);
+  const startTimeRef = useRef<number | null>(null);
   const completedRef = useRef(false);
   const submittedRef = useRef(false);
 
   const generateQuiz = useCallback(() => {
-    const pool = shuffle(VOCAB).slice(0, questionCount);
+    const pool = shuffle(vocab).slice(0, questionCount);
     const modes: QuizMode[] = ["han-to-vi", "vi-to-han", "pinyin-to-han"];
     const qs: Question[] = pool.map(word => {
       const mode = modes[Math.floor(Math.random() * modes.length)];
       // Lấy 3 đáp án sai ngẫu nhiên
-      const distractors = shuffle(VOCAB.filter(w => w.id !== word.id)).slice(0, 3);
+      const distractors = shuffle(vocab.filter(w => w.id !== word.id)).slice(0, 3);
       let correct: string;
       let options: string[];
       if (mode === "han-to-vi") {
@@ -104,14 +108,27 @@ export function Quiz({ questionCount = QUESTION_COUNT, onQuizComplete, onScoreCo
     setTotalSeconds(0);
     completedRef.current = false;
     submittedRef.current = false;
-  }, [questionCount]);
+  }, [questionCount, vocab]);
 
   const start = () => {
     generateQuiz();
+    startTimeRef.current = Date.now();
+    setTotalSeconds(0);
     setPhase("playing");
   };
 
-  // Timer - mỗi giây trừ timeLeft + cộng totalSeconds
+  // Cập nhật totalSeconds mỗi 10ms (độ chính xác 0.01s)
+  useEffect(() => {
+    if (phase !== "playing") return;
+    const interval = setInterval(() => {
+      if (startTimeRef.current) {
+        setTotalSeconds((Date.now() - startTimeRef.current) / 1000);
+      }
+    }, 10);
+    return () => clearInterval(interval);
+  }, [phase]);
+
+  // Timer đếm ngược mỗi câu
   useEffect(() => {
     if (phase !== "playing") return;
     if (selected !== null) return;
@@ -119,12 +136,22 @@ export function Quiz({ questionCount = QUESTION_COUNT, onQuizComplete, onScoreCo
       setSelected("__timeout__");
       return;
     }
-    const t = setTimeout(() => {
-      setTimeLeft(v => v - 1);
-      setTotalSeconds(s => s + 1);
-    }, 1000);
+    const t = setTimeout(() => setTimeLeft(v => v - 1), 1000);
     return () => clearTimeout(t);
   }, [phase, selected, timeLeft]);
+
+  // Phím Enter để qua câu tiếp theo (sau khi đã chọn đáp án)
+  useEffect(() => {
+    if (phase !== "playing" || selected === null) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        next();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [phase, selected, current, questions.length]);
 
   const handleSelect = (opt: string) => {
     if (selected !== null) return;
@@ -216,13 +243,13 @@ export function Quiz({ questionCount = QUESTION_COUNT, onQuizComplete, onScoreCo
         <div className="text-6xl font-bold bg-gradient-to-r from-emerald-500 to-teal-500 bg-clip-text text-transparent">
           {score}/{questions.length}
         </div>
-        <Badge variant="secondary" className="text-base px-4 py-1">{pct}% chính xác • {totalSeconds}s</Badge>
+        <Badge variant="secondary" className="text-base px-4 py-1">{pct}% chính xác • {totalSeconds.toFixed(1)}s</Badge>
 
         {/* Điểm chăm chỉ - hiển thị như matching */}
         <div className="w-full p-4 rounded-2xl bg-white/70 border border-emerald-200">
           <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">Điểm chăm chỉ nhận được</div>
           <div className="text-4xl font-bold bg-gradient-to-r from-emerald-500 to-teal-500 bg-clip-text text-transparent">
-            +{points}
+            +{points.toFixed(1)}
           </div>
           <div className="text-xs text-muted-foreground mt-1">
             {perfect ? "Perfect bonus +200 • " : ""}

@@ -6,7 +6,8 @@ import { Trophy, RotateCcw, Check, Heart, Timer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { VOCAB, VocabWord } from "@/lib/vocab-data";
+import { VocabWord } from "@/lib/vocab-data";
+import { useVocab } from "@/lib/vocab-context";
 import { useAuth } from "@/hooks/use-auth";
 
 interface MatchingProps {
@@ -38,6 +39,7 @@ function shuffle<T>(arr: T[]): T[] {
 
 export function Matching({ pairCount = DEFAULT_PAIR_COUNT, onComplete, onServerSubmit }: MatchingProps) {
   const { user, loading: authLoading } = useAuth();
+  const vocab = useVocab();
   const [phase, setPhase] = useState<"intro" | "playing" | "won" | "lost">("intro");
   const [cells, setCells] = useState<Cell[]>([]);
   const [matched, setMatched] = useState<Set<string>>(new Set());
@@ -45,10 +47,11 @@ export function Matching({ pairCount = DEFAULT_PAIR_COUNT, onComplete, onServerS
   const [wrongPair, setWrongPair] = useState<[string, string] | null>(null);
   const [lives, setLives] = useState(MAX_LIVES);
   const [seconds, setSeconds] = useState(0);
+  const startTimeRef = useRef<number | null>(null);
   const completedRef = useRef(false);
 
   const start = useCallback(() => {
-    const pool = shuffle(VOCAB).slice(0, pairCount);
+    const pool = shuffle(vocab).slice(0, pairCount);
     const hanCells: Cell[] = pool.map(w => ({
       id: `h-${w.id}`,
       wordId: w.id,
@@ -68,14 +71,19 @@ export function Matching({ pairCount = DEFAULT_PAIR_COUNT, onComplete, onServerS
     setSelected(null);
     setLives(MAX_LIVES);
     setSeconds(0);
+    startTimeRef.current = Date.now();
     setPhase("playing");
     completedRef.current = false;
-  }, [pairCount]);
+  }, [pairCount, vocab]);
 
-  // Timer
+  // Timer - cập nhật mỗi 10ms (độ chính xác 0.01s)
   useEffect(() => {
     if (phase !== "playing") return;
-    const t = setInterval(() => setSeconds(s => s + 1), 1000);
+    const t = setInterval(() => {
+      if (startTimeRef.current) {
+        setSeconds((Date.now() - startTimeRef.current) / 1000);
+      }
+    }, 10);
     return () => clearInterval(t);
   }, [phase]);
 
@@ -97,7 +105,8 @@ export function Matching({ pairCount = DEFAULT_PAIR_COUNT, onComplete, onServerS
   useEffect(() => {
     if (phase === "won" && !completedRef.current) {
       completedRef.current = true;
-      const score = Math.max(0, 1000 - seconds * 5 + lives * 100);
+      const raw = Math.max(0, 1000 - seconds * 5 + lives * 100);
+      const score = Math.floor(raw * 10) / 10;
       onComplete?.(score);
       if (onServerSubmit) {
         onServerSubmit(score, { time: seconds, lives }).catch(() => {});
@@ -175,7 +184,8 @@ export function Matching({ pairCount = DEFAULT_PAIR_COUNT, onComplete, onServerS
 
   // ===== WON / LOST =====
   if (phase === "won" || phase === "lost") {
-    const score = phase === "won" ? Math.max(0, 1000 - seconds * 5 + lives * 100) : 0;
+    const raw = phase === "won" ? Math.max(0, 1000 - seconds * 5 + lives * 100) : 0;
+    const score = Math.floor(raw * 10) / 10;
     return (
       <Card className={`p-8 flex flex-col items-center gap-6 text-center border-0 ${phase === "won" ? "bg-gradient-to-br from-emerald-100 via-teal-50 to-cyan-100" : "bg-gradient-to-br from-rose-100 via-pink-50 to-red-100"}`}>
         <div className="text-7xl">{phase === "won" ? "🏆" : "💔"}</div>
@@ -184,12 +194,12 @@ export function Matching({ pairCount = DEFAULT_PAIR_COUNT, onComplete, onServerS
             {phase === "won" ? "Chiến thắng!" : "Hết mạng!"}
           </h3>
           <p className="text-muted-foreground">
-            {phase === "won" ? `Hoàn thành trong ${seconds}s, còn ${lives} mạng` : "Đừng nản, thử lại nhé!"}
+            {phase === "won" ? `Hoàn thành trong ${seconds.toFixed(1)}s, còn ${lives} mạng` : "Đừng nản, thử lại nhé!"}
           </p>
         </div>
         {phase === "won" && (
           <div className="text-5xl font-bold bg-gradient-to-r from-emerald-500 to-teal-500 bg-clip-text text-transparent">
-            {score} điểm
+            {score.toFixed(1)} điểm
           </div>
         )}
         <div className="flex gap-3">
@@ -219,7 +229,7 @@ export function Matching({ pairCount = DEFAULT_PAIR_COUNT, onComplete, onServerS
         </div>
         <div className="flex items-center gap-2">
           <Badge className="gap-1 bg-sky-100 text-sky-700 border-0 hover:bg-sky-100">
-            <Timer className="h-3.5 w-3.5" /> {seconds}s
+            <Timer className="h-3.5 w-3.5" /> {seconds.toFixed(1)}s
           </Badge>
           <Badge className="gap-1 bg-emerald-100 text-emerald-700 border-0 hover:bg-emerald-100">
             <Check className="h-3.5 w-3.5" /> {matched.size / 2}/{pairCount}

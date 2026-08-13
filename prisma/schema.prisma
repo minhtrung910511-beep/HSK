@@ -37,7 +37,7 @@ model Score {
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   module    String   // "quiz" | "matching" | "flashcard_review"
-  score     Int      // Điểm số (quiz: 0-100, matching: 0-1000+, flashcard: số từ ôn)
+  score     Float    // Điểm số (1 chữ số thập phân)
   detail    String?  // JSON string: {correct, total, time, ...}
   createdAt DateTime @default(now())
 

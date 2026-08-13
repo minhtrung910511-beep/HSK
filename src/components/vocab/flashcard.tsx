@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { TopicId, VOCAB, VocabWord, getTopic } from "@/lib/vocab-data";
+import { TopicId, VocabWord, getTopic } from "@/lib/vocab-data";
+import { useVocab } from "@/lib/vocab-context";
 import { QualityGrade } from "@/lib/srs";
 
 interface FlashcardProps {
@@ -30,6 +31,7 @@ function speak(text: string) {
 }
 
 export function Flashcard({ topicId = "all", onGrade, onMarkLearned, dueWordIds }: FlashcardProps) {
+  const vocab = useVocab();
   const [deck, setDeck] = useState<VocabWord[]>([]);
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
@@ -38,17 +40,17 @@ export function Flashcard({ topicId = "all", onGrade, onMarkLearned, dueWordIds 
   useEffect(() => {
     let words: VocabWord[] = [];
     if (topicId === "all") {
-      words = [...VOCAB];
+      words = [...vocab];
     } else if (topicId === "due") {
       const ids = new Set(dueWordIds ?? []);
-      words = VOCAB.filter(w => ids.has(w.id));
+      words = vocab.filter(w => ids.has(w.id));
     } else {
-      words = VOCAB.filter(w => w.topic === topicId);
+      words = vocab.filter(w => w.topic === topicId);
     }
     setDeck(words);
     setIndex(0);
     setFlipped(false);
-  }, [topicId, dueWordIds]);
+  }, [topicId, dueWordIds, vocab]);
 
   const current = deck[index];
 

@@ -7,8 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { VOCAB, VocabWord, TopicId, getTopic, getWordsByTopic } from "@/lib/vocab-data";
+import { VocabWord, TopicId, getTopic } from "@/lib/vocab-data";
+import { useVocab } from "@/lib/vocab-context";
 import { useAuth } from "@/hooks/use-auth";
+import { TopicLeaderboard } from "./topic-leaderboard";
 
 interface TopicReviewProps {
   topicId: TopicId;
@@ -28,7 +30,13 @@ interface Question {
 
 const QUESTION_COUNT = 10;
 const TIME_LIMIT = 20; // giây/câu
-const POINTS_PER_CORRECT = 5;
+
+// Cùng công thức tính điểm như Quiz - Math.floor để giữ đa dạng thập phân
+function computeReviewPoints(correct: number, total: number, totalSeconds: number): number {
+  const perfectBonus = correct === total ? 200 : 0;
+  const raw = Math.max(0, 1000 - totalSeconds * 5 + correct * 50 + perfectBonus);
+  return Math.floor(raw * 10) / 10;
+}
 
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
@@ -53,8 +61,9 @@ function speak(text: string) {
 
 export function TopicReview({ topicId, onExit, onServerSubmit, onComplete }: TopicReviewProps) {
   const { user, loading: authLoading, submitScore } = useAuth();
+  const vocab = useVocab();
   const topic = getTopic(topicId);
-  const allTopicWords = getWordsByTopic(topicId);
+  const allTopicWords = vocab.filter(w => w.topic === topicId);
 
   const [questions, setQuestions] = useState<Question[]>([]);
   const [current, setCurrent] = useState(0);
@@ -62,8 +71,11 @@ export function TopicReview({ topicId, onExit, onServerSubmit, onComplete }: Top
   const [score, setScore] = useState(0);
   const [timeLeft, setTimeLeft] = useState(TIME_LIMIT);
   const [phase, setPhase] = useState<"intro" | "playing" | "result">("intro");
+  const [totalSeconds, setTotalSeconds] = useState(0);
+  const startTimeRef = useRef<number | null>(null);
   const completedRef = useRef(false);
   const submittedRef = useRef(false);
+  const [lbRefresh, setLbRefresh] = useState(0);
 
   // Wrapper exit: reset state trước khi gọi onExit để lần sau mở lại không bị lỗi
   const handleExit = useCallback(() => {
@@ -72,6 +84,8 @@ export function TopicReview({ topicId, onExit, onServerSubmit, onComplete }: Top
     setSelected(null);
     setScore(0);
     setTimeLeft(TIME_LIMIT);
+    setTotalSeconds(0);
+    startTimeRef.current = null;
     setPhase("intro");
     completedRef.current = false;
     submittedRef.current = false;
@@ -84,7 +98,7 @@ export function TopicReview({ topicId, onExit, onServerSubmit, onComplete }: Top
     // Lấy pool = từ trong chủ đề. Nếu ít hơn QUESTION_COUNT, ghép thêm từ random khác
     let pool = shuffle(allTopicWords);
     if (pool.length < QUESTION_COUNT) {
-      const others = shuffle(VOCAB.filter(w => w.topic !== topicId)).slice(0, QUESTION_COUNT - pool.length);
+      const others = shuffle(vocab.filter(w => w.topic !== topicId)).slice(0, QUESTION_COUNT - pool.length);
       pool = shuffle([...pool, ...others]);
     }
     pool = pool.slice(0, Math.min(QUESTION_COUNT, pool.length));
@@ -92,7 +106,7 @@ export function TopicReview({ topicId, onExit, onServerSubmit, onComplete }: Top
     const modes: QuizMode[] = ["han-to-pinyin", "han-to-meaning", "meaning-to-han"];
     const qs: Question[] = pool.map(word => {
       const mode = modes[Math.floor(Math.random() * modes.length)];
-      const distractors = shuffle(VOCAB.filter(w => w.id !== word.id)).slice(0, 3);
+      const distractors = shuffle(vocab.filter(w => w.id !== word.id)).slice(0, 3);
       let correct: string;
       let options: string[];
       if (mode === "han-to-pinyin") {
@@ -112,16 +126,30 @@ export function TopicReview({ topicId, onExit, onServerSubmit, onComplete }: Top
     setSelected(null);
     setScore(0);
     setTimeLeft(TIME_LIMIT);
+    setTotalSeconds(0);
     completedRef.current = false;
     submittedRef.current = false;
-  }, [allTopicWords, topicId]);
+  }, [allTopicWords, topicId, vocab]);
 
   const start = () => {
     generateQuiz();
+    startTimeRef.current = Date.now();
+    setTotalSeconds(0);
     setPhase("playing");
   };
 
-  // Timer
+  // Cập nhật totalSeconds mỗi 10ms
+  useEffect(() => {
+    if (phase !== "playing") return;
+    const interval = setInterval(() => {
+      if (startTimeRef.current) {
+        setTotalSeconds((Date.now() - startTimeRef.current) / 1000);
+      }
+    }, 10);
+    return () => clearInterval(interval);
+  }, [phase]);
+
+  // Timer đếm ngược mỗi câu
   useEffect(() => {
     if (phase !== "playing") return;
     if (selected !== null) return;
@@ -132,6 +160,19 @@ export function TopicReview({ topicId, onExit, onServerSubmit, onComplete }: Top
     const t = setTimeout(() => setTimeLeft(v => v - 1), 1000);
     return () => clearTimeout(t);
   }, [phase, selected, timeLeft]);
+
+  // Phím Enter để qua câu tiếp theo
+  useEffect(() => {
+    if (phase !== "playing" || selected === null) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        next();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [phase, selected, current, questions.length]);
 
   const handleSelect = (opt: string) => {
     if (selected !== null) return;
@@ -158,16 +199,17 @@ export function TopicReview({ topicId, onExit, onServerSubmit, onComplete }: Top
     if (completedRef.current) return;
     completedRef.current = true;
 
-    const points = score * POINTS_PER_CORRECT;
-    const detail = { correct: score, total: questions.length, topic: topicId };
+    const points = computeReviewPoints(score, questions.length, totalSeconds);
+    const detail = { correct: score, total: questions.length, time: totalSeconds, topic: topicId };
     onComplete?.(points);
+    setLbRefresh(k => k + 1);
     if (user && onServerSubmit) {
       // Submit qua prop callback (sẽ tự gọi submitScore)
       onServerSubmit(points, detail).catch(() => {});
     } else if (user) {
       submitScore("flashcard_review", points, detail).catch(() => {});
     }
-  }, [phase, questions.length, authLoading, user, score, topicId, onServerSubmit, onComplete, submitScore]);
+  }, [phase, questions.length, authLoading, user, score, totalSeconds, topicId, onServerSubmit, onComplete, submitScore]);
 
   // ===== INTRO =====
   if (phase === "intro") {
@@ -191,7 +233,7 @@ export function TopicReview({ topicId, onExit, onServerSubmit, onComplete }: Top
           </p>
           <div className="mt-3 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-100 border border-amber-300 text-amber-800 text-sm">
             <Trophy className="h-4 w-4" />
-            Mỗi câu đúng: <b>+{POINTS_PER_CORRECT} điểm</b> chăm chỉ
+            Càng đúng nhiều & làm nhanh càng nhiều điểm • Perfect +200
           </div>
         </div>
         {!user && !authLoading && (
@@ -203,6 +245,11 @@ export function TopicReview({ topicId, onExit, onServerSubmit, onComplete }: Top
         <Button size="lg" onClick={start} className="gap-2 bg-gradient-to-r from-indigo-500 to-violet-500 text-white hover:opacity-90">
           Bắt đầu ôn tập <RotateCcw className="h-4 w-4" />
         </Button>
+
+        {/* Bảng xếp hạng chủ đề này */}
+        <div className="w-full">
+          <TopicLeaderboard topicId={topicId} refreshKey={lbRefresh} />
+        </div>
       </Card>
     );
   }
@@ -210,7 +257,8 @@ export function TopicReview({ topicId, onExit, onServerSubmit, onComplete }: Top
   // ===== RESULT =====
   if (phase === "result") {
     const pct = Math.round((score / questions.length) * 100);
-    const points = score * POINTS_PER_CORRECT;
+    const points = computeReviewPoints(score, questions.length, totalSeconds);
+    const perfect = score === questions.length;
     const emoji = pct >= 80 ? "🏆" : pct >= 60 ? "🎉" : pct >= 40 ? "💪" : "📚";
     const title = pct >= 80 ? "Xuất sắc!" : pct >= 60 ? "Tốt lắm!" : pct >= 40 ? "Cố lên!" : "Cần luyện thêm!";
     return (
@@ -223,16 +271,16 @@ export function TopicReview({ topicId, onExit, onServerSubmit, onComplete }: Top
         <div className="text-6xl font-bold bg-gradient-to-r from-emerald-500 to-teal-500 bg-clip-text text-transparent">
           {score}/{questions.length}
         </div>
-        <Badge variant="secondary" className="text-base px-4 py-1">{pct}% chính xác • {topic.emoji} {topic.name}</Badge>
+        <Badge variant="secondary" className="text-base px-4 py-1">{pct}% chính xác • {totalSeconds.toFixed(1)}s • {topic.emoji} {topic.name}</Badge>
 
         <div className="w-full p-4 rounded-2xl bg-white/70 border border-emerald-200">
           <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">Điểm chăm chỉ nhận được</div>
           <div className="text-4xl font-bold bg-gradient-to-r from-emerald-500 to-teal-500 bg-clip-text text-transparent">
-            +{points}
+            +{points.toFixed(1)}
           </div>
           <div className="text-xs text-muted-foreground mt-1">
-            {score} câu × {POINTS_PER_CORRECT} điểm
-            {user ? " • Đã lưu vào bảng xếp hạng 🎉" : " • Đăng nhập để lưu điểm"}
+            {perfect ? "Perfect bonus +200 • " : ""}
+            {user ? "Đã lưu vào bảng xếp hạng 🎉" : "Đăng nhập để lưu điểm"}
           </div>
         </div>
 
@@ -243,6 +291,11 @@ export function TopicReview({ topicId, onExit, onServerSubmit, onComplete }: Top
           <Button variant="outline" onClick={handleExit} className="gap-2">
             <ArrowLeft className="h-4 w-4" /> Quay lại
           </Button>
+        </div>
+
+        {/* Bảng xếp hạng chủ đề này */}
+        <div className="w-full">
+          <TopicLeaderboard topicId={topicId} refreshKey={lbRefresh} />
         </div>
       </Card>
     );
@@ -276,7 +329,7 @@ export function TopicReview({ topicId, onExit, onServerSubmit, onComplete }: Top
             <Clock className="h-3.5 w-3.5" /> {timeLeft}s
           </Badge>
           <Badge className="gap-1 bg-emerald-100 text-emerald-700 border-0 hover:bg-emerald-100">
-            <Trophy className="h-3.5 w-3.5" /> {score * POINTS_PER_CORRECT}đ
+            <Trophy className="h-3.5 w-3.5" /> {score} đúng
           </Badge>
         </div>
       </div>

@@ -218,6 +218,7 @@ export default function HomePage() {
                 <div className="w-px h-5 bg-border mx-1" />
                 {TOPICS.map(t => {
                   const count = currentVocab.filter(w => w.topic === t.id).length;
+                  if (count === 0) return null;
                   return (
                     <ScopeChip
                       key={t.id}

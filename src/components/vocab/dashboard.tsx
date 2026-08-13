@@ -5,7 +5,8 @@ import { motion } from "framer-motion";
 import { Flame, BookOpen, Target, TrendingUp, Trophy, Zap, Clock, CheckCircle2, Crown } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { TOPICS, VOCAB } from "@/lib/vocab-data";
+import { TOPICS } from "@/lib/vocab-data";
+import { useVocab } from "@/lib/vocab-context";
 import { ProgressData, getDueCards } from "@/lib/srs";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -34,10 +35,11 @@ interface RankInfo {
 
 export function Dashboard({ progress, onTopicClick, onStartDue, onReviewTopic }: DashboardProps) {
   const { user } = useAuth();
+  const vocab = useVocab();
   const [stats, setStats] = useState<ServerStats | null>(null);
   const [rankInfo, setRankInfo] = useState<RankInfo | null>(null);
 
-  const allWordIds = useMemo(() => VOCAB.map(w => w.id), []);
+  const allWordIds = useMemo(() => vocab.map(w => w.id), [vocab]);
   const dueIds = useMemo(
     () => (progress ? getDueCards(progress, allWordIds) : []),
     [progress, allWordIds]
@@ -83,7 +85,7 @@ export function Dashboard({ progress, onTopicClick, onStartDue, onReviewTopic }:
     return () => document.removeEventListener("visibilitychange", handler);
   }, [fetchStats]);
 
-  const totalWords = VOCAB.length;
+  const totalWords = vocab.length;
   const learnedCount = progress?.learnedWordIds.length ?? 0;
   const completionPct = totalWords ? Math.round((learnedCount / totalWords) * 100) : 0;
   const accuracy = progress && progress.totalReviews > 0
@@ -260,11 +262,12 @@ export function Dashboard({ progress, onTopicClick, onStartDue, onReviewTopic }:
               <BookOpen className="h-4 w-4 text-violet-500" />
               Chủ đề
             </h3>
-            <Badge variant="secondary" className="text-xs">{TOPICS.length} chủ đề</Badge>
+            <Badge variant="secondary" className="text-xs">{TOPICS.filter(t => vocab.some(w => w.topic === t.id)).length} chủ đề</Badge>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-[260px] overflow-y-auto pr-1">
             {TOPICS.map(topic => {
-              const words = VOCAB.filter(w => w.topic === topic.id);
+              const words = vocab.filter(w => w.topic === topic.id);
+              if (words.length === 0) return null;
               const learned = words.filter(w => progress?.learnedWordIds.includes(w.id)).length;
               const pct = Math.round((learned / words.length) * 100);
               return (
