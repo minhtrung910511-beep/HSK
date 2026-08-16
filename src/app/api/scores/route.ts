@@ -1,29 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
-import { promises as fs } from "fs";
 
 export const runtime = "nodejs";
-
-// ===== Auto-reset điểm đầu tháng =====
-const RESET_MARKER_FILE = "/home/z/my-project/.last-score-reset";
-
-async function checkAndResetMonthlyScores() {
-  try {
-    const now = new Date();
-    const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-    let lastReset = "";
-    try {
-      lastReset = (await fs.readFile(RESET_MARKER_FILE, "utf-8")).trim();
-    } catch { /* file chưa tồn tại */ }
-    if (lastReset === currentMonth) return;
-    await db.score.deleteMany({});
-    console.log(`[monthly-reset] Reset tháng ${currentMonth}`);
-    await fs.writeFile(RESET_MARKER_FILE, currentMonth, "utf-8");
-  } catch (e) {
-    console.error("[monthly-reset] Lỗi:", e);
-  }
-}
 
 // POST: nộp điểm số sau khi chơi quiz/matching/flashcard review
 export async function POST(req: NextRequest) {
@@ -60,9 +39,6 @@ export async function POST(req: NextRequest) {
 //   limit: số user tối đa trả về
 //   range: "all" | "daily" | "weekly" | "monthly" (filter theo thời gian)
 export async function GET(req: NextRequest) {
-  // Auto-reset điểm đầu tháng
-  await checkAndResetMonthlyScores();
-
   const url = new URL(req.url);
   const scoreModule = url.searchParams.get("module");
   const topicFilter = url.searchParams.get("topic");
