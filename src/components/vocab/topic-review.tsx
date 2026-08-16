@@ -19,22 +19,24 @@ interface TopicReviewProps {
   onComplete?: (points: number) => void;
 }
 
-type QuizMode = "han-to-pinyin" | "han-to-meaning" | "meaning-to-han";
+type QuizMode = "han-to-pinyin" | "han-to-meaning" | "meaning-to-han" | "fill-blank";
 
 interface Question {
   word: VocabWord;
   options: string[];
   correct: string;
   mode: QuizMode;
+  blankSentence?: string;
+  blankPinyin?: string;
 }
 
 const QUESTION_COUNT = 10;
 const TIME_LIMIT = 20; // giây/câu
 
-// Cùng công thức tính điểm như Quiz - Math.floor để giữ đa dạng thập phân
+// Phương án 1: Chỉ câu đúng mới tính điểm, câu sai = 0
 function computeReviewPoints(correct: number, total: number, totalSeconds: number): number {
   const perfectBonus = correct === total ? 200 : 0;
-  const raw = Math.max(0, 1000 - totalSeconds * 5 + correct * 50 + perfectBonus);
+  const raw = Math.max(0, correct * 100 - totalSeconds * 3 + perfectBonus);
   return Math.floor(raw * 10) / 10;
 }
 
@@ -103,23 +105,35 @@ export function TopicReview({ topicId, onExit, onServerSubmit, onComplete }: Top
     }
     pool = pool.slice(0, Math.min(QUESTION_COUNT, pool.length));
 
-    const modes: QuizMode[] = ["han-to-pinyin", "han-to-meaning", "meaning-to-han"];
+    const modes: QuizMode[] = ["han-to-pinyin", "han-to-meaning", "meaning-to-han", "fill-blank"];
     const qs: Question[] = pool.map(word => {
       const mode = modes[Math.floor(Math.random() * modes.length)];
       const distractors = shuffle(vocab.filter(w => w.id !== word.id)).slice(0, 3);
       let correct: string;
       let options: string[];
+      let blankSentence: string | undefined;
+      let blankPinyin: string | undefined;
       if (mode === "han-to-pinyin") {
         correct = word.pinyin;
         options = shuffle([correct, ...distractors.map(d => d.pinyin)]);
       } else if (mode === "han-to-meaning") {
         correct = word.meaning;
         options = shuffle([correct, ...distractors.map(d => d.meaning)]);
+      } else if (mode === "fill-blank") {
+        correct = word.han;
+        options = shuffle([correct, ...distractors.map(d => d.han)]);
+        const ex = word.example || "";
+        if (ex && ex.includes(word.han)) {
+          blankSentence = ex.replace(word.han, "＿＿＿");
+          blankPinyin = word.examplePinyin || "";
+        } else {
+          blankSentence = undefined;
+        }
       } else {
         correct = word.han;
         options = shuffle([correct, ...distractors.map(d => d.han)]);
       }
-      return { word, options, correct, mode };
+      return { word, options, correct, mode, blankSentence, blankPinyin };
     });
     setQuestions(qs);
     setCurrent(0);
@@ -229,7 +243,7 @@ export function TopicReview({ topicId, onExit, onServerSubmit, onComplete }: Top
             Ôn tập: {topic.name}
           </h3>
           <p className="text-muted-foreground max-w-md">
-            {QUESTION_COUNT} câu trắc nghiệm • {TIME_LIMIT}s/câu • 3 dạng: Hán→Pinyin, Hán→Nghĩa, Nghĩa→Hán
+            {QUESTION_COUNT} câu trắc nghiệm • {TIME_LIMIT}s/câu • 4 dạng: Hán→Pinyin, Hán→Nghĩa, Nghĩa→Hán, Điền chỗ trống
           </p>
           <div className="mt-3 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-100 border border-amber-300 text-amber-800 text-sm">
             <Trophy className="h-4 w-4" />
@@ -304,11 +318,14 @@ export function TopicReview({ topicId, onExit, onServerSubmit, onComplete }: Top
   // ===== PLAYING =====
   const q = questions[current];
   if (!q) return null;
-  const promptLabel = q.mode === "han-to-pinyin"
+  const effectiveMode = q.mode === "fill-blank" && !q.blankSentence ? "han-to-meaning" : q.mode;
+  const promptLabel = effectiveMode === "han-to-pinyin"
     ? "Chọn phiên âm pinyin"
-    : q.mode === "han-to-meaning"
+    : effectiveMode === "han-to-meaning"
     ? "Chọn nghĩa tiếng Việt"
-    : "Chọn Hán tự";
+    : effectiveMode === "meaning-to-han"
+    ? "Chọn Hán tự"
+    : "Chọn Hán tự điền vào chỗ trống";
 
   return (
     <div className="flex flex-col gap-5">
@@ -339,19 +356,30 @@ export function TopicReview({ topicId, onExit, onServerSubmit, onComplete }: Top
       {/* Question */}
       <Card className="p-6 md:p-8 flex flex-col items-center gap-4 bg-gradient-to-br from-indigo-50 to-violet-50 border-2 border-indigo-100">
         <div className="text-xs uppercase tracking-wider text-muted-foreground">{promptLabel}</div>
-        <div className="flex items-center gap-3">
-          <div className="text-5xl md:text-6xl font-bold">
-            {q.mode === "han-to-pinyin" && q.word.han}
-            {q.mode === "han-to-meaning" && q.word.han}
-            {q.mode === "meaning-to-han" && q.word.meaning}
-          </div>
-          {(q.mode === "han-to-pinyin" || q.mode === "han-to-meaning") && (
-            <Button variant="ghost" size="icon" onClick={() => speak(q.word.han)}>
+        {effectiveMode === "fill-blank" && q.blankSentence ? (
+          <div className="flex flex-col items-center gap-3 w-full">
+            <div className="text-3xl md:text-4xl font-bold text-center leading-relaxed">
+              {q.blankSentence}
+            </div>
+            <Button variant="ghost" size="icon" onClick={() => speak(q.word.example || q.word.han)}>
               <Volume2 className="h-5 w-5" />
             </Button>
-          )}
-        </div>
-        {q.mode === "meaning-to-han" && (
+          </div>
+        ) : (
+          <div className="flex items-center gap-3">
+            <div className="text-5xl md:text-6xl font-bold">
+              {effectiveMode === "han-to-pinyin" && q.word.han}
+              {effectiveMode === "han-to-meaning" && q.word.han}
+              {effectiveMode === "meaning-to-han" && q.word.meaning}
+            </div>
+            {(effectiveMode === "han-to-pinyin" || effectiveMode === "han-to-meaning") && (
+              <Button variant="ghost" size="icon" onClick={() => speak(q.word.han)}>
+                <Volume2 className="h-5 w-5" />
+              </Button>
+            )}
+          </div>
+        )}
+        {effectiveMode === "meaning-to-han" && (
           <div className="text-sm text-muted-foreground">{q.word.emoji} {q.word.pos}</div>
         )}
       </Card>

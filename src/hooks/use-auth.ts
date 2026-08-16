@@ -133,7 +133,7 @@ export function useAuth() {
   );
 
   const submitScore = useCallback(
-    async (module: "quiz" | "matching" | "flashcard_review", score: number, detail?: Record<string, unknown>) => {
+    async (module: "quiz" | "matching" | "flashcard_review" | "advanced_quiz", score: number, detail?: Record<string, unknown>) => {
       try {
         const res = await authFetch("/api/scores", {
           method: "POST",

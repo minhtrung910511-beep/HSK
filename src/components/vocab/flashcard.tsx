@@ -152,7 +152,6 @@ export function Flashcard({ topicId = "all", onGrade, onMarkLearned, dueWordIds 
                     <Volume2 className="h-5 w-5" />
                   </Button>
                 </div>
-                <div className="text-7xl mb-2">{current.emoji || current.meaning}</div>
                 <div className="text-7xl md:text-8xl font-bold tracking-tight drop-shadow-lg">
                   {current.han}
                 </div>

@@ -11,12 +11,28 @@ import { VocabWord } from "@/lib/vocab-data";
 import { useVocab } from "@/lib/vocab-context";
 import { useAuth } from "@/hooks/use-auth";
 
-type QuizMode = "han-to-vi" | "vi-to-han" | "pinyin-to-han";
+type QuizMode = "han-to-vi" | "vi-to-han" | "pinyin-to-han" | "pinyin-to-vi" | "fill-blank";
+type QuizDifficulty = "easy" | "normal" | "hard";
+
+// Hệ số điểm theo độ khó:
+// - easy: 0.5X (chỉ Pinyin→Nghĩa, dễ nhất - đọc pinyin chọn nghĩa)
+// - normal: 1X (mix 3 dạng: Hán→Nghĩa, Nghĩa→Hán, Pinyin→Hán)
+// - hard: 2X (chỉ dạng điền chỗ trống, khó nhất)
+function getDifficultyMultiplier(difficulty: QuizDifficulty): number {
+  if (difficulty === "easy") return 0.5;
+  if (difficulty === "hard") return 2;
+  return 1;
+}
+
+function getModesForDifficulty(difficulty: QuizDifficulty): QuizMode[] {
+  if (difficulty === "easy") return ["pinyin-to-vi"];
+  if (difficulty === "hard") return ["fill-blank"];
+  return ["han-to-vi", "vi-to-han", "pinyin-to-han"]; // normal
+}
 
 interface QuizProps {
   questionCount?: number;
   onQuizComplete?: (score: number, total: number) => void;
-  // Callback nhận (correctCount, totalSeconds) - tính điểm như matching
   onScoreComputed?: (points: number, detail: { correct: number; total: number; time: number }) => void;
 }
 
@@ -25,6 +41,8 @@ interface Question {
   options: string[];
   correct: string;
   mode: QuizMode;
+  blankSentence?: string;
+  blankPinyin?: string;
 }
 
 function shuffle<T>(arr: T[]): T[] {
@@ -39,15 +57,17 @@ function shuffle<T>(arr: T[]): T[] {
 const QUESTION_COUNT = 10;
 const TIME_LIMIT = 15; // giây / câu
 
-// Tính điểm quiz theo style matching:
-// - Càng nhiều câu đúng càng cao
-// - Càng nhanh càng cao
-// - Công thức: max(0, 1000 - tổng_thời_gian×5 + đúng×50)
-function computeQuizPoints(correct: number, total: number, totalSeconds: number): number {
-  // Bonus: đúng hết (perfect) +200
+// Tính điểm quiz - Phương án 1:
+// - Chỉ câu đúng mới tính điểm (correct × 100)
+// - Thời gian nhanh được bonus (trừ điểm theo thời gian)
+// - Perfect (đúng hết) +200 bonus
+// - Câu sai = 0 điểm (không tính thời gian)
+// - Nhân hệ số độ khó (0.5X / 1X / 2X)
+function computeQuizPoints(correct: number, total: number, totalSeconds: number, difficulty: QuizDifficulty = "normal"): number {
   const perfectBonus = correct === total ? 200 : 0;
-  const raw = Math.max(0, 1000 - totalSeconds * 5 + correct * 50 + perfectBonus);
-  return Math.floor(raw * 10) / 10;
+  const raw = Math.max(0, correct * 100 - totalSeconds * 3 + perfectBonus);
+  const multiplier = getDifficultyMultiplier(difficulty);
+  return Math.floor(raw * multiplier * 10) / 10;
 }
 
 function speak(text: string) {
@@ -65,6 +85,7 @@ function speak(text: string) {
 export function Quiz({ questionCount = QUESTION_COUNT, onQuizComplete, onScoreComputed }: QuizProps) {
   const { user, loading: authLoading, submitScore } = useAuth();
   const vocab = useVocab();
+  const [difficulty, setDifficulty] = useState<QuizDifficulty>("normal");
   const [questions, setQuestions] = useState<Question[]>([]);
   const [current, setCurrent] = useState(0);
   const [selected, setSelected] = useState<string | null>(null);
@@ -72,32 +93,52 @@ export function Quiz({ questionCount = QUESTION_COUNT, onQuizComplete, onScoreCo
   const [timeLeft, setTimeLeft] = useState(TIME_LIMIT);
   const [phase, setPhase] = useState<"intro" | "playing" | "result">("intro");
   const [answeredCount, setAnsweredCount] = useState(0);
-  // Track tổng thời gian chơi quiz (giây)
   const [totalSeconds, setTotalSeconds] = useState(0);
   const startTimeRef = useRef<number | null>(null);
   const completedRef = useRef(false);
   const submittedRef = useRef(false);
 
   const generateQuiz = useCallback(() => {
-    const pool = shuffle(vocab).slice(0, questionCount);
-    const modes: QuizMode[] = ["han-to-vi", "vi-to-han", "pinyin-to-han"];
+    let poolWords = vocab;
+    if (difficulty === "hard") {
+      poolWords = vocab.filter(w => {
+        const ex = w.example || "";
+        return ex && ex.includes(w.han) && ex.length > w.han.length;
+      });
+    }
+    const pool = shuffle(poolWords).slice(0, Math.min(questionCount, poolWords.length));
+    const modes = getModesForDifficulty(difficulty);
     const qs: Question[] = pool.map(word => {
       const mode = modes[Math.floor(Math.random() * modes.length)];
-      // Lấy 3 đáp án sai ngẫu nhiên
       const distractors = shuffle(vocab.filter(w => w.id !== word.id)).slice(0, 3);
       let correct: string;
       let options: string[];
+      let blankSentence: string | undefined;
+      let blankPinyin: string | undefined;
       if (mode === "han-to-vi") {
         correct = word.meaning;
         options = shuffle([correct, ...distractors.map(d => d.meaning)]);
       } else if (mode === "vi-to-han") {
         correct = word.han;
         options = shuffle([correct, ...distractors.map(d => d.han)]);
+      } else if (mode === "pinyin-to-vi") {
+        correct = word.meaning;
+        options = shuffle([correct, ...distractors.map(d => d.meaning)]);
+      } else if (mode === "fill-blank") {
+        correct = word.han;
+        options = shuffle([correct, ...distractors.map(d => d.han)]);
+        const ex = word.example || "";
+        if (ex && ex.includes(word.han)) {
+          blankSentence = ex.replace(word.han, "＿＿＿");
+          blankPinyin = word.examplePinyin || "";
+        } else {
+          blankSentence = undefined;
+        }
       } else {
         correct = word.han;
         options = shuffle([correct, ...distractors.map(d => d.han)]);
       }
-      return { word, options, correct, mode };
+      return { word, options, correct, mode, blankSentence, blankPinyin };
     });
     setQuestions(qs);
     setCurrent(0);
@@ -108,7 +149,7 @@ export function Quiz({ questionCount = QUESTION_COUNT, onQuizComplete, onScoreCo
     setTotalSeconds(0);
     completedRef.current = false;
     submittedRef.current = false;
-  }, [questionCount, vocab]);
+  }, [questionCount, vocab, difficulty]);
 
   const start = () => {
     generateQuiz();
@@ -117,7 +158,7 @@ export function Quiz({ questionCount = QUESTION_COUNT, onQuizComplete, onScoreCo
     setPhase("playing");
   };
 
-  // Cập nhật totalSeconds mỗi 10ms (độ chính xác 0.01s)
+  // Cập nhật totalSeconds mỗi 10ms
   useEffect(() => {
     if (phase !== "playing") return;
     const interval = setInterval(() => {
@@ -140,7 +181,7 @@ export function Quiz({ questionCount = QUESTION_COUNT, onQuizComplete, onScoreCo
     return () => clearTimeout(t);
   }, [phase, selected, timeLeft]);
 
-  // Phím Enter để qua câu tiếp theo (sau khi đã chọn đáp án)
+  // Phím Enter để qua câu tiếp theo
   useEffect(() => {
     if (phase !== "playing" || selected === null) return;
     const handler = (e: KeyboardEvent) => {
@@ -164,7 +205,6 @@ export function Quiz({ questionCount = QUESTION_COUNT, onQuizComplete, onScoreCo
 
   const next = () => {
     if (current + 1 >= questions.length) {
-      // Hoàn thành - chỉ set phase, onQuizComplete được gọi qua useEffect
       setPhase("result");
       return;
     }
@@ -173,7 +213,6 @@ export function Quiz({ questionCount = QUESTION_COUNT, onQuizComplete, onScoreCo
     setTimeLeft(TIME_LIMIT);
   };
 
-  // Gọi onQuizComplete 1 lần duy nhất khi vào phase result (tránh crash do parent setState trong event handler)
   useEffect(() => {
     if (phase === "result" && !completedRef.current && questions.length > 0) {
       completedRef.current = true;
@@ -184,21 +223,18 @@ export function Quiz({ questionCount = QUESTION_COUNT, onQuizComplete, onScoreCo
     }
   }, [phase, score, questions.length, onQuizComplete]);
 
-  // Submit lên server khi user đã sẵn sàng (sau khi đăng nhập xong) - tính điểm như matching
   useEffect(() => {
     if (phase !== "result" || questions.length === 0) return;
-    if (authLoading) return; // Đợi auth xong
-    if (submittedRef.current) return; // Đã submit rồi
-    if (!user) return; // Không có user thì không submit
+    if (authLoading) return;
+    if (submittedRef.current) return;
+    if (!user) return;
 
     submittedRef.current = true;
-    const points = computeQuizPoints(score, questions.length, totalSeconds);
-    const detail = { correct: score, total: questions.length, time: totalSeconds };
-    // Submit lên server
+    const points = computeQuizPoints(score, questions.length, totalSeconds, difficulty);
+    const detail = { correct: score, total: questions.length, time: totalSeconds, difficulty };
     submitScore("quiz", points, detail).catch(() => {});
-    // Callback cho parent (lưu localStorage + hiển thị)
     onScoreComputed?.(points, detail);
-  }, [phase, questions.length, authLoading, user, score, totalSeconds, submitScore, onScoreComputed]);
+  }, [phase, questions.length, authLoading, user, score, totalSeconds, difficulty, submitScore, onScoreComputed]);
 
   // ===== INTRO =====
   if (phase === "intro") {
@@ -210,8 +246,34 @@ export function Quiz({ questionCount = QUESTION_COUNT, onQuizComplete, onScoreCo
         <div>
           <h3 className="text-2xl font-bold text-foreground mb-2">Quiz trắc nghiệm</h3>
           <p className="text-muted-foreground max-w-md">
-            {questionCount} câu hỏi • {TIME_LIMIT} giây/câu • 3 dạng: Hán → Việt, Việt → Hán, Pinyin → Hán
+            {questionCount} câu hỏi • {TIME_LIMIT} giây/câu • Chọn độ khó bên dưới
           </p>
+        </div>
+
+        {/* Difficulty picker */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 w-full max-w-md">
+          {([
+            { id: "easy", label: "Dễ", desc: "Pinyin → Nghĩa (đọc pinyin chọn nghĩa) • 0.5X điểm", emoji: "🟢" },
+            { id: "normal", label: "Thường", desc: "Mix 3 dạng: Hán→Nghĩa, Nghĩa→Hán, Pinyin→Hán • 1X điểm", emoji: "🟡" },
+            { id: "hard", label: "Khó", desc: "Điền chỗ trống trong câu • 2X điểm", emoji: "🔴" },
+          ] as { id: QuizDifficulty; label: string; desc: string; emoji: string }[]).map(opt => (
+            <button
+              key={opt.id}
+              onClick={() => setDifficulty(opt.id)}
+              className={`p-3 rounded-xl text-left transition-all border-2 ${
+                difficulty === opt.id
+                  ? "bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white border-violet-600 shadow"
+                  : "bg-white border-slate-200 hover:border-violet-300 hover:shadow-sm"
+              }`}
+            >
+              <div className="font-semibold text-sm flex items-center gap-1">
+                <span>{opt.emoji}</span> {opt.label}
+              </div>
+              <div className={`text-xs mt-1 ${difficulty === opt.id ? "text-white/80" : "text-muted-foreground"}`}>
+                {opt.desc}
+              </div>
+            </button>
+          ))}
         </div>
         {!user && !authLoading && (
           <div className="w-full p-3 rounded-xl bg-amber-100 border border-amber-300 text-amber-800 text-sm flex items-center gap-2 justify-center">
@@ -231,8 +293,11 @@ export function Quiz({ questionCount = QUESTION_COUNT, onQuizComplete, onScoreCo
     const pct = Math.round((score / questions.length) * 100);
     const emoji = pct >= 80 ? "🏆" : pct >= 60 ? "🎉" : pct >= 40 ? "💪" : "📚";
     const title = pct >= 80 ? "Xuất sắc!" : pct >= 60 ? "Tốt lắm!" : pct >= 40 ? "Cố lên!" : "Cần luyện thêm!";
-    const points = computeQuizPoints(score, questions.length, totalSeconds);
+    const points = computeQuizPoints(score, questions.length, totalSeconds, difficulty);
     const perfect = score === questions.length;
+    const multiplier = getDifficultyMultiplier(difficulty);
+    const multiplierLabel = multiplier === 2 ? "2X" : multiplier === 0.5 ? "0.5X" : "1X";
+    const difficultyLabel = difficulty === "easy" ? "Dễ" : difficulty === "hard" ? "Khó" : "Thường";
     return (
       <Card className="p-8 flex flex-col items-center gap-6 text-center bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 border-0">
         <div className="text-7xl">{emoji}</div>
@@ -245,7 +310,6 @@ export function Quiz({ questionCount = QUESTION_COUNT, onQuizComplete, onScoreCo
         </div>
         <Badge variant="secondary" className="text-base px-4 py-1">{pct}% chính xác • {totalSeconds.toFixed(1)}s</Badge>
 
-        {/* Điểm chăm chỉ - hiển thị như matching */}
         <div className="w-full p-4 rounded-2xl bg-white/70 border border-emerald-200">
           <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">Điểm chăm chỉ nhận được</div>
           <div className="text-4xl font-bold bg-gradient-to-r from-emerald-500 to-teal-500 bg-clip-text text-transparent">
@@ -253,7 +317,7 @@ export function Quiz({ questionCount = QUESTION_COUNT, onQuizComplete, onScoreCo
           </div>
           <div className="text-xs text-muted-foreground mt-1">
             {perfect ? "Perfect bonus +200 • " : ""}
-            {user ? "Đã lưu vào bảng xếp hạng 🎉" : "Đăng nhập để lưu điểm lên bảng xếp hạng"}
+            Hệ số {multiplierLabel} (độ khó {difficultyLabel}) • {user ? "Đã lưu vào bảng xếp hạng 🎉" : "Đăng nhập để lưu điểm lên bảng xếp hạng"}
           </div>
         </div>
 
@@ -272,12 +336,17 @@ export function Quiz({ questionCount = QUESTION_COUNT, onQuizComplete, onScoreCo
   // ===== PLAYING =====
   const q = questions[current];
   if (!q) return null;
+  const effectiveMode = q.mode === "fill-blank" && !q.blankSentence ? "han-to-vi" : q.mode;
 
-  const promptLabel = q.mode === "han-to-vi"
+  const promptLabel = effectiveMode === "han-to-vi"
     ? "Chọn nghĩa tiếng Việt"
-    : q.mode === "vi-to-han"
+    : effectiveMode === "vi-to-han"
     ? "Chọn Hán tự đúng"
-    : "Chọn Hán tự theo pinyin";
+    : effectiveMode === "pinyin-to-han"
+    ? "Chọn Hán tự theo pinyin"
+    : effectiveMode === "pinyin-to-vi"
+    ? "Đọc pinyin chọn nghĩa tiếng Việt"
+    : "Chọn Hán tự điền vào chỗ trống";
 
   return (
     <div className="flex flex-col gap-5">
@@ -299,19 +368,31 @@ export function Quiz({ questionCount = QUESTION_COUNT, onQuizComplete, onScoreCo
       {/* Question card */}
       <Card className="p-6 md:p-8 flex flex-col items-center gap-4 bg-gradient-to-br from-violet-50 to-fuchsia-50 border-2 border-violet-100">
         <div className="text-xs uppercase tracking-wider text-muted-foreground">{promptLabel}</div>
-        <div className="flex items-center gap-3">
-          <div className="text-5xl md:text-6xl font-bold text-foreground">
-            {q.mode === "han-to-vi" && q.word.han}
-            {q.mode === "vi-to-han" && q.word.meaning}
-            {q.mode === "pinyin-to-han" && <span className="italic">{q.word.pinyin}</span>}
-          </div>
-          {q.mode === "han-to-vi" && (
-            <Button variant="ghost" size="icon" onClick={() => speak(q.word.han)}>
+        {effectiveMode === "fill-blank" && q.blankSentence ? (
+          <div className="flex flex-col items-center gap-3 w-full">
+            <div className="text-3xl md:text-4xl font-bold text-center leading-relaxed text-foreground">
+              {q.blankSentence}
+            </div>
+            <Button variant="ghost" size="icon" onClick={() => speak(q.word.example || q.word.han)}>
               <Volume2 className="h-5 w-5" />
             </Button>
-          )}
-        </div>
-        {q.mode === "vi-to-han" && (
+          </div>
+        ) : (
+          <div className="flex items-center gap-3">
+            <div className="text-5xl md:text-6xl font-bold text-foreground">
+              {effectiveMode === "han-to-vi" && q.word.han}
+              {effectiveMode === "vi-to-han" && q.word.meaning}
+              {effectiveMode === "pinyin-to-han" && <span className="italic">{q.word.pinyin}</span>}
+              {effectiveMode === "pinyin-to-vi" && <span className="italic">{q.word.pinyin}</span>}
+            </div>
+            {(effectiveMode === "han-to-vi" || effectiveMode === "pinyin-to-vi") && (
+              <Button variant="ghost" size="icon" onClick={() => speak(q.word.han)}>
+                <Volume2 className="h-5 w-5" />
+              </Button>
+            )}
+          </div>
+        )}
+        {effectiveMode === "vi-to-han" && (
           <div className="text-sm text-muted-foreground">{q.word.emoji} {q.word.pos}</div>
         )}
       </Card>
@@ -343,21 +424,18 @@ export function Quiz({ questionCount = QUESTION_COUNT, onQuizComplete, onScoreCo
         })}
       </div>
 
-      {/* Next button */}
-      <AnimatePresence>
-        {selected !== null && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            className="flex justify-end"
-          >
-            <Button onClick={next} className="gap-2 bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white">
-              {current + 1 >= questions.length ? "Xem kết quả" : "Câu tiếp theo"}
-            </Button>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Next */}
+      {selected !== null && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex justify-center"
+        >
+          <Button size="lg" onClick={next} className="gap-2 bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white">
+            {current + 1 >= questions.length ? "Xem kết quả" : "Câu tiếp theo (Enter)"}
+          </Button>
+        </motion.div>
+      )}
     </div>
   );
 }

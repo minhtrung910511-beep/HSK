@@ -1,8 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
+import { promises as fs } from "fs";
 
 export const runtime = "nodejs";
+
+// ===== Auto-reset điểm đầu tháng =====
+const RESET_MARKER_FILE = "/home/z/my-project/.last-score-reset";
+
+async function checkAndResetMonthlyScores() {
+  try {
+    const now = new Date();
+    const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    let lastReset = "";
+    try {
+      lastReset = (await fs.readFile(RESET_MARKER_FILE, "utf-8")).trim();
+    } catch { /* file chưa tồn tại */ }
+    if (lastReset === currentMonth) return;
+    await db.score.deleteMany({});
+    console.log(`[monthly-reset] Reset tháng ${currentMonth}`);
+    await fs.writeFile(RESET_MARKER_FILE, currentMonth, "utf-8");
+  } catch (e) {
+    console.error("[monthly-reset] Lỗi:", e);
+  }
+}
 
 // POST: nộp điểm số sau khi chơi quiz/matching/flashcard review
 export async function POST(req: NextRequest) {
@@ -16,7 +37,7 @@ export async function POST(req: NextRequest) {
     const score = Math.floor(parseFloat(body.score) * 10) / 10;
     const detail = body.detail ? JSON.stringify(body.detail) : null;
 
-    if (!["quiz", "matching", "flashcard_review"].includes(scoreModule)) {
+    if (!["quiz", "matching", "flashcard_review", "advanced_quiz"].includes(scoreModule)) {
       return NextResponse.json({ error: "Module không hợp lệ" }, { status: 400 });
     }
     if (isNaN(score) || score < 0) {
@@ -39,10 +60,15 @@ export async function POST(req: NextRequest) {
 //   limit: số user tối đa trả về
 //   range: "all" | "daily" | "weekly" | "monthly" (filter theo thời gian)
 export async function GET(req: NextRequest) {
+  // Auto-reset điểm đầu tháng
+  await checkAndResetMonthlyScores();
+
   const url = new URL(req.url);
-  const scoreModule = url.searchParams.get("module"); // "quiz" | "matching" | null (=all = diligence)
+  const scoreModule = url.searchParams.get("module");
+  const topicFilter = url.searchParams.get("topic");
+  const subFilter = url.searchParams.get("sub");
   const limit = Math.max(1, Math.min(parseInt(url.searchParams.get("limit") || "100", 10), 1000));
-  const range = url.searchParams.get("range") || "all"; // all | daily | weekly | monthly
+  const range = url.searchParams.get("range") || "all";
 
   // Tính thời điểm bắt đầu dựa trên range
   let since: Date | undefined;
@@ -68,12 +94,35 @@ export async function GET(req: NextRequest) {
 
   try {
     if (scoreModule) {
-      // Leaderboard theo module - top score của MỖI user (trong khoảng thời gian)
-      const allRows = await db.score.findMany({
+      let allRows = await db.score.findMany({
         where: { module: scoreModule, ...timeFilter },
         include: { user: { select: { username: true, displayName: true } } },
         orderBy: { score: "desc" },
       });
+
+      // Topic filter (chỉ áp dụng cho flashcard_review)
+      if (topicFilter && scoreModule === "flashcard_review") {
+        allRows = allRows.filter((r) => {
+          if (!r.detail) return false;
+          try {
+            const d = JSON.parse(r.detail);
+            return d.topic === topicFilter;
+          } catch { return false; }
+        });
+      }
+
+      // Sub-filter: lọc theo độ khó quiz (easy/normal/hard) hoặc mode matching
+      if (subFilter && (scoreModule === "quiz" || scoreModule === "matching")) {
+        allRows = allRows.filter((r) => {
+          if (!r.detail) return false;
+          try {
+            const d = JSON.parse(r.detail);
+            if (scoreModule === "quiz") return d.difficulty === subFilter;
+            if (scoreModule === "matching") return d.mode === subFilter;
+            return false;
+          } catch { return false; }
+        });
+      }
 
       // Group by userId - giữ score cao nhất (đã sort desc nên gặp đầu tiên là cao nhất)
       const userBestMap = new Map<string, { userId: string; username: string; displayName: string; score: number; at: Date }>();

@@ -13,20 +13,38 @@ import { useAuth } from "@/hooks/use-auth";
 interface MatchingProps {
   pairCount?: number;
   onComplete?: (score: number) => void;
-  onServerSubmit?: (score: number, detail: { time: number; lives: number }) => Promise<unknown>;
+  onServerSubmit?: (score: number, detail: { time: number; lives: number; mode?: string }) => Promise<unknown>;
 }
 
 interface Cell {
   id: string;
   wordId: number;
-  side: "han" | "vi";
+  side: "han" | "vi" | "pinyin" | "blank";
   text: string;
-  pinyin?: string;
-  emoji?: string;
 }
+
+type MatchingMode = "han-vi" | "han-pinyin" | "vi-pinyin" | "blank-han";
 
 const DEFAULT_PAIR_COUNT = 6;
 const MAX_LIVES = 3;
+
+// Hệ số điểm theo mode:
+// - han-vi, han-pinyin: 1X (bình thường)
+// - vi-pinyin: 0.5X (dễ hơn)
+// - blank-han: 2X (khó hơn)
+function getModeMultiplier(mode: MatchingMode): number {
+  if (mode === "vi-pinyin") return 0.5;
+  if (mode === "blank-han") return 2;
+  return 1;
+}
+
+// Phương án 1: Chỉ win mới có điểm. Nếu thua (hết mạng) = 0 điểm.
+// lives còn nhiều = bonus, seconds ít = bonus
+function computeMatchingScore(mode: MatchingMode, seconds: number, lives: number, won: boolean): number {
+  const raw = won ? Math.max(0, lives * 200 - seconds * 3 + 200) : 0;
+  const multiplier = getModeMultiplier(mode);
+  return Math.floor(raw * multiplier * 10) / 10;
+}
 
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
@@ -41,6 +59,7 @@ export function Matching({ pairCount = DEFAULT_PAIR_COUNT, onComplete, onServerS
   const { user, loading: authLoading } = useAuth();
   const vocab = useVocab();
   const [phase, setPhase] = useState<"intro" | "playing" | "won" | "lost">("intro");
+  const [mode, setMode] = useState<MatchingMode>("han-vi");
   const [cells, setCells] = useState<Cell[]>([]);
   const [matched, setMatched] = useState<Set<string>>(new Set());
   const [selected, setSelected] = useState<Cell | null>(null);
@@ -51,22 +70,36 @@ export function Matching({ pairCount = DEFAULT_PAIR_COUNT, onComplete, onServerS
   const completedRef = useRef(false);
 
   const start = useCallback(() => {
-    const pool = shuffle(vocab).slice(0, pairCount);
-    const hanCells: Cell[] = pool.map(w => ({
-      id: `h-${w.id}`,
-      wordId: w.id,
-      side: "han",
-      text: w.han,
-      pinyin: w.pinyin,
-      emoji: w.emoji || w.meaning, // Fallback: nếu không có emoji, dùng meaning
-    }));
-    const viCells: Cell[] = pool.map(w => ({
-      id: `v-${w.id}`,
-      wordId: w.id,
-      side: "vi",
-      text: w.meaning,
-    }));
-    setCells(shuffle([...hanCells, ...viCells]));
+    let poolWords = vocab;
+    if (mode === "blank-han") {
+      poolWords = vocab.filter(w => {
+        const ex = w.example || "";
+        return ex && ex.includes(w.han) && ex.length > w.han.length;
+      });
+    }
+    const pool = shuffle(poolWords).slice(0, Math.min(pairCount, poolWords.length));
+
+    const leftCells: Cell[] = [];
+    const rightCells: Cell[] = [];
+
+    pool.forEach(w => {
+      if (mode === "han-vi") {
+        leftCells.push({ id: `h-${w.id}`, wordId: w.id, side: "han", text: w.han });
+        rightCells.push({ id: `v-${w.id}`, wordId: w.id, side: "vi", text: w.meaning });
+      } else if (mode === "han-pinyin") {
+        leftCells.push({ id: `h-${w.id}`, wordId: w.id, side: "han", text: w.han });
+        rightCells.push({ id: `p-${w.id}`, wordId: w.id, side: "pinyin", text: w.pinyin });
+      } else if (mode === "vi-pinyin") {
+        leftCells.push({ id: `v-${w.id}`, wordId: w.id, side: "vi", text: w.meaning });
+        rightCells.push({ id: `p-${w.id}`, wordId: w.id, side: "pinyin", text: w.pinyin });
+      } else {
+        const blank = (w.example || "").replace(w.han, "＿＿＿");
+        leftCells.push({ id: `b-${w.id}`, wordId: w.id, side: "blank", text: blank });
+        rightCells.push({ id: `h-${w.id}`, wordId: w.id, side: "han", text: w.han });
+      }
+    });
+
+    setCells(shuffle([...leftCells, ...rightCells]));
     setMatched(new Set());
     setSelected(null);
     setLives(MAX_LIVES);
@@ -74,9 +107,8 @@ export function Matching({ pairCount = DEFAULT_PAIR_COUNT, onComplete, onServerS
     startTimeRef.current = Date.now();
     setPhase("playing");
     completedRef.current = false;
-  }, [pairCount, vocab]);
+  }, [pairCount, vocab, mode]);
 
-  // Timer - cập nhật mỗi 10ms (độ chính xác 0.01s)
   useEffect(() => {
     if (phase !== "playing") return;
     const t = setInterval(() => {
@@ -87,7 +119,6 @@ export function Matching({ pairCount = DEFAULT_PAIR_COUNT, onComplete, onServerS
     return () => clearInterval(t);
   }, [phase]);
 
-  // Win check - chỉ set phase, onComplete được gọi ở effect riêng
   useEffect(() => {
     if (phase !== "playing") return;
     if (cells.length > 0 && matched.size === cells.length) {
@@ -95,27 +126,24 @@ export function Matching({ pairCount = DEFAULT_PAIR_COUNT, onComplete, onServerS
     }
   }, [matched, cells.length, phase]);
 
-  // Lose check
   useEffect(() => {
     if (phase !== "playing") return;
     if (lives <= 0) setPhase("lost");
   }, [lives, phase]);
 
-  // Gọi onComplete 1 lần duy nhất khi vào phase won (tránh crash do parent setState)
   useEffect(() => {
     if (phase === "won" && !completedRef.current) {
       completedRef.current = true;
-      const raw = Math.max(0, 1000 - seconds * 5 + lives * 100);
-      const score = Math.floor(raw * 10) / 10;
+      const score = computeMatchingScore(mode, seconds, lives, true);
       onComplete?.(score);
       if (onServerSubmit) {
-        onServerSubmit(score, { time: seconds, lives }).catch(() => {});
+        onServerSubmit(score, { time: seconds, lives, mode }).catch(() => {});
       }
     }
     if (phase !== "won") {
       completedRef.current = false;
     }
-  }, [phase, seconds, lives, onComplete, onServerSubmit]);
+  }, [phase, seconds, lives, mode, onComplete, onServerSubmit]);
 
   const handleClick = (cell: Cell) => {
     if (matched.has(cell.id)) return;
@@ -131,22 +159,18 @@ export function Matching({ pairCount = DEFAULT_PAIR_COUNT, onComplete, onServerS
       return;
     }
 
-    // Cùng side -> đổi lựa chọn
     if (selected.side === cell.side) {
       setSelected(cell);
       return;
     }
 
-    // Khác side - kiểm tra ghép
     if (selected.wordId === cell.wordId) {
-      // Đúng
       const newMatched = new Set(matched);
       newMatched.add(selected.id);
       newMatched.add(cell.id);
       setMatched(newMatched);
       setSelected(null);
     } else {
-      // Sai
       setWrongPair([selected.id, cell.id]);
       setLives(l => l - 1);
       setTimeout(() => {
@@ -158,6 +182,12 @@ export function Matching({ pairCount = DEFAULT_PAIR_COUNT, onComplete, onServerS
 
   // ===== INTRO =====
   if (phase === "intro") {
+    const modeOptions: { id: MatchingMode; label: string; desc: string; emoji: string }[] = [
+      { id: "han-vi", label: "Hán tự ↔ Nghĩa", desc: "Ghép chữ Hán với nghĩa tiếng Việt • 1X điểm", emoji: "🔤" },
+      { id: "han-pinyin", label: "Hán tự ↔ Pinyin", desc: "Ghép chữ Hán với phiên âm pinyin • 1X điểm", emoji: "🎵" },
+      { id: "vi-pinyin", label: "Nghĩa ↔ Pinyin", desc: "Ghép nghĩa tiếng Việt với pinyin • 0.5X điểm (dễ)", emoji: "💬" },
+      { id: "blank-han", label: "Câu ＿ ↔ Hán tự", desc: "Ghép câu có chỗ trống với Hán tự cần điền • 2X điểm (khó)", emoji: "📝" },
+    ];
     return (
       <Card className="p-8 flex flex-col items-center gap-6 text-center bg-gradient-to-br from-teal-100 via-cyan-50 to-sky-100 border-0">
         <div className="w-20 h-20 rounded-full bg-gradient-to-br from-teal-500 to-cyan-500 flex items-center justify-center shadow-lg">
@@ -166,8 +196,28 @@ export function Matching({ pairCount = DEFAULT_PAIR_COUNT, onComplete, onServerS
         <div>
           <h3 className="text-2xl font-bold text-foreground mb-2">Ghép cặp từ</h3>
           <p className="text-muted-foreground max-w-md">
-            Ghép {pairCount} cặp Hán tự ↔ Nghĩa tiếng Việt. {MAX_LIVES} mạng, càng nhanh điểm càng cao!
+            Chọn dạng ghép cặp • {pairCount} cặp • {MAX_LIVES} mạng • Càng nhanh điểm càng cao!
           </p>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-md">
+          {modeOptions.map(opt => (
+            <button
+              key={opt.id}
+              onClick={() => setMode(opt.id)}
+              className={`p-3 rounded-xl text-left transition-all border-2 ${
+                mode === opt.id
+                  ? "bg-gradient-to-br from-teal-500 to-cyan-500 text-white border-teal-600 shadow"
+                  : "bg-white border-slate-200 hover:border-teal-300 hover:shadow-sm"
+              }`}
+            >
+              <div className="font-semibold text-sm flex items-center gap-1">
+                <span>{opt.emoji}</span> {opt.label}
+              </div>
+              <div className={`text-xs mt-1 ${mode === opt.id ? "text-white/80" : "text-muted-foreground"}`}>
+                {opt.desc}
+              </div>
+            </button>
+          ))}
         </div>
         {!user && !authLoading && (
           <div className="w-full p-3 rounded-xl bg-amber-100 border border-amber-300 text-amber-800 text-sm flex items-center gap-2 justify-center">
@@ -184,8 +234,9 @@ export function Matching({ pairCount = DEFAULT_PAIR_COUNT, onComplete, onServerS
 
   // ===== WON / LOST =====
   if (phase === "won" || phase === "lost") {
-    const raw = phase === "won" ? Math.max(0, 1000 - seconds * 5 + lives * 100) : 0;
-    const score = Math.floor(raw * 10) / 10;
+    const score = computeMatchingScore(mode, seconds, lives, phase === "won");
+    const multiplier = getModeMultiplier(mode);
+    const multiplierLabel = multiplier === 2 ? "2X" : multiplier === 0.5 ? "0.5X" : "1X";
     return (
       <Card className={`p-8 flex flex-col items-center gap-6 text-center border-0 ${phase === "won" ? "bg-gradient-to-br from-emerald-100 via-teal-50 to-cyan-100" : "bg-gradient-to-br from-rose-100 via-pink-50 to-red-100"}`}>
         <div className="text-7xl">{phase === "won" ? "🏆" : "💔"}</div>
@@ -198,9 +249,18 @@ export function Matching({ pairCount = DEFAULT_PAIR_COUNT, onComplete, onServerS
           </p>
         </div>
         {phase === "won" && (
-          <div className="text-5xl font-bold bg-gradient-to-r from-emerald-500 to-teal-500 bg-clip-text text-transparent">
-            {score.toFixed(1)} điểm
-          </div>
+          <>
+            <div className="text-5xl font-bold bg-gradient-to-r from-emerald-500 to-teal-500 bg-clip-text text-transparent">
+              {score.toFixed(1)} điểm
+            </div>
+            <Badge className={`text-sm px-3 py-1 border-0 ${
+              multiplier === 2 ? "bg-rose-100 text-rose-700"
+              : multiplier === 0.5 ? "bg-amber-100 text-amber-700"
+              : "bg-slate-100 text-slate-700"
+            }`}>
+              Hệ số {multiplierLabel} {multiplier === 2 ? "• Dạng khó" : multiplier === 0.5 ? "• Dạng dễ" : "• Dạng thường"}
+            </Badge>
+          </>
         )}
         <div className="flex gap-3">
           <Button onClick={start} className="gap-2 bg-gradient-to-r from-teal-500 to-cyan-500 text-white">
@@ -243,12 +303,13 @@ export function Matching({ pairCount = DEFAULT_PAIR_COUNT, onComplete, onServerS
           const isMatched = matched.has(cell.id);
           const isSelected = selected?.id === cell.id;
           const isWrong = wrongPair?.includes(cell.id);
+          const blankCls = cell.side === "blank" ? "min-h-[140px] md:min-h-[160px]" : "min-h-[100px] md:min-h-[120px]";
           return (
             <motion.button
               key={cell.id}
               layout
               onClick={() => handleClick(cell)}
-              className={`relative rounded-2xl p-4 md:p-5 min-h-[100px] md:min-h-[120px] flex flex-col items-center justify-center gap-1 transition-all border-2 ${
+              className={`relative rounded-2xl p-4 md:p-5 ${blankCls} flex flex-col items-center justify-center gap-1 transition-all border-2 ${
                 isMatched
                   ? "bg-emerald-100 border-emerald-300 opacity-50"
                   : isWrong
@@ -260,14 +321,11 @@ export function Matching({ pairCount = DEFAULT_PAIR_COUNT, onComplete, onServerS
               disabled={isMatched}
             >
               {cell.side === "han" ? (
-                <>
-                  <div className="text-2xl md:text-3xl font-bold">{cell.text}</div>
-                  {!isMatched && (
-                    <div className={`text-xs italic ${isSelected ? "text-white/80" : "text-muted-foreground"}`}>
-                      {cell.pinyin}
-                    </div>
-                  )}
-                </>
+                <div className="text-2xl md:text-3xl font-bold">{cell.text}</div>
+              ) : cell.side === "pinyin" ? (
+                <div className="text-xl md:text-2xl italic font-semibold">{cell.text}</div>
+              ) : cell.side === "blank" ? (
+                <div className="text-base md:text-lg font-medium text-center leading-relaxed">{cell.text}</div>
               ) : (
                 <div className="text-base md:text-lg font-semibold text-center">{cell.text}</div>
               )}
@@ -278,7 +336,10 @@ export function Matching({ pairCount = DEFAULT_PAIR_COUNT, onComplete, onServerS
       </div>
 
       <div className="text-center text-xs text-muted-foreground">
-        Nhấp vào 1 từ Hán và 1 nghĩa tiếng Việt để ghép cặp
+        {mode === "han-vi" && "Nhấp 1 Hán tự + 1 nghĩa tiếng Việt để ghép"}
+        {mode === "han-pinyin" && "Nhấp 1 Hán tự + 1 pinyin để ghép"}
+        {mode === "vi-pinyin" && "Nhấp 1 nghĩa tiếng Việt + 1 pinyin để ghép"}
+        {mode === "blank-han" && "Nhấp 1 câu có ＿ + 1 Hán tự để điền vào chỗ trống"}
       </div>
     </div>
   );

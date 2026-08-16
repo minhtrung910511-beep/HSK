@@ -10,6 +10,8 @@ import { useAuth } from "@/hooks/use-auth";
 
 type Tab = "diligence" | "quiz" | "matching";
 type Range = "daily" | "weekly" | "monthly" | "all";
+type QuizSub = "all" | "easy" | "normal" | "hard";
+type MatchingSub = "all" | "han-vi" | "han-pinyin" | "vi-pinyin" | "blank-han";
 
 interface DiligenceRow {
   rank: number;
@@ -33,6 +35,8 @@ export function Leaderboard() {
   const { user } = useAuth();
   const [tab, setTab] = useState<Tab>("diligence");
   const [range, setRange] = useState<Range>("all");
+  const [quizSub, setQuizSub] = useState<QuizSub>("all");
+  const [matchingSub, setMatchingSub] = useState<MatchingSub>("all");
   const [diligence, setDiligence] = useState<DiligenceRow[]>([]);
   const [quiz, setQuiz] = useState<ModuleRow[]>([]);
   const [matching, setMatching] = useState<ModuleRow[]>([]);
@@ -42,10 +46,12 @@ export function Leaderboard() {
     setLoading(true);
     try {
       const rangeQuery = range !== "all" ? `&range=${range}` : "";
+      const quizSubQuery = quizSub !== "all" ? `&sub=${quizSub}` : "";
+      const matchingSubQuery = matchingSub !== "all" ? `&sub=${matchingSub}` : "";
       const [d, q, m] = await Promise.all([
         fetch(`/api/scores?limit=500${rangeQuery}`).then((r) => r.json()),
-        fetch(`/api/scores?module=quiz&limit=500${rangeQuery}`).then((r) => r.json()),
-        fetch(`/api/scores?module=matching&limit=500${rangeQuery}`).then((r) => r.json()),
+        fetch(`/api/scores?module=quiz&limit=500${rangeQuery}${quizSubQuery}`).then((r) => r.json()),
+        fetch(`/api/scores?module=matching&limit=500${rangeQuery}${matchingSubQuery}`).then((r) => r.json()),
       ]);
       setDiligence(d.leaderboard || []);
       setQuiz(q.leaderboard || []);
@@ -55,7 +61,7 @@ export function Leaderboard() {
     } finally {
       setLoading(false);
     }
-  }, [range]);
+  }, [range, quizSub, matchingSub]);
 
   useEffect(() => {
     fetchAll();
@@ -141,28 +147,87 @@ export function Leaderboard() {
           <DiligenceBoard rows={diligence} currentUserId={user?.id} loading={loading} />
         )}
         {tab === "quiz" && (
-          <ModuleBoard
-            title="🏆 Bảng xếp hạng Quiz"
-            description="Top điểm cao nhất mỗi người - 10 câu trắc nghiệm • max(0, 1000 - thời_gian×5 + đúng×50) + 200 nếu perfect"
-            rows={quiz}
-            currentUserId={user?.id}
-            loading={loading}
-            scoreLabel="Điểm"
-            gradient="from-violet-500 to-fuchsia-500"
-            emptyText="Chưa có ai làm quiz. Hãy là người đầu tiên!"
-          />
+          <>
+            {/* Sub-tabs cho Quiz: độ khó */}
+            <div className="flex gap-2 flex-wrap mb-4">
+              {([
+                { id: "all", label: "Tất cả" },
+                { id: "easy", label: "🟢 Dễ (0.5X)" },
+                { id: "normal", label: "🟡 Thường (1X)" },
+                { id: "hard", label: "🔴 Khó (2X)" },
+              ] as { id: QuizSub; label: string }[]).map(s => (
+                <button
+                  key={s.id}
+                  onClick={() => setQuizSub(s.id)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                    quizSub === s.id
+                      ? "bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white shadow"
+                      : "bg-white text-foreground border border-border hover:bg-violet-50 hover:border-violet-300"
+                  }`}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+            <ModuleBoard
+              title="🏆 Bảng xếp hạng Quiz"
+              description={
+                quizSub === "all"
+                  ? "Top điểm cao nhất mỗi người - Tất cả độ khó • Câu sai = 0 điểm"
+                  : quizSub === "easy"
+                  ? "Top điểm độ khó Dễ (0.5X) • Chỉ Pinyin→Nghĩa • Câu sai = 0 điểm"
+                  : quizSub === "hard"
+                  ? "Top điểm độ khó Khó (2X) • Chỉ điền chỗ trống • Câu sai = 0 điểm"
+                  : "Top điểm độ khó Thường (1X) • Mix 3 dạng • Câu sai = 0 điểm"
+              }
+              rows={quiz}
+              currentUserId={user?.id}
+              loading={loading}
+              scoreLabel="Điểm"
+              gradient="from-violet-500 to-fuchsia-500"
+              emptyText="Chưa có ai làm quiz dạng này. Hãy là người đầu tiên!"
+            />
+          </>
         )}
         {tab === "matching" && (
-          <ModuleBoard
-            title="⚡ Bảng xếp hạng Matching"
-            description="Top điểm cao nhất mỗi người - Game ghép cặp (càng nhanh điểm càng cao)"
-            rows={matching}
-            currentUserId={user?.id}
-            loading={loading}
-            scoreLabel="Điểm"
-            gradient="from-teal-500 to-cyan-500"
-            emptyText="Chưa có ai chơi ghép cặp. Hãy là người đầu tiên!"
-          />
+          <>
+            {/* Sub-tabs cho Matching: dạng ghép cặp */}
+            <div className="flex gap-2 flex-wrap mb-4">
+              {([
+                { id: "all", label: "Tất cả" },
+                { id: "han-vi", label: "🔤 Hán↔Nghĩa (1X)" },
+                { id: "han-pinyin", label: "🎵 Hán↔Pinyin (1X)" },
+                { id: "vi-pinyin", label: "💬 Nghĩa↔Pinyin (0.5X)" },
+                { id: "blank-han", label: "📝 Câu＿↔Hán (2X)" },
+              ] as { id: MatchingSub; label: string }[]).map(s => (
+                <button
+                  key={s.id}
+                  onClick={() => setMatchingSub(s.id)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                    matchingSub === s.id
+                      ? "bg-gradient-to-r from-teal-500 to-cyan-500 text-white shadow"
+                      : "bg-white text-foreground border border-border hover:bg-teal-50 hover:border-teal-300"
+                  }`}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+            <ModuleBoard
+              title="⚡ Bảng xếp hạng Matching"
+              description={
+                matchingSub === "all"
+                  ? "Top điểm cao nhất mỗi người - Tất cả dạng ghép cặp • Thua = 0 điểm"
+                  : `Top điểm dạng ${matchingSub === "han-vi" ? "Hán↔Nghĩa (1X)" : matchingSub === "han-pinyin" ? "Hán↔Pinyin (1X)" : matchingSub === "vi-pinyin" ? "Nghĩa↔Pinyin (0.5X)" : "Câu＿↔Hán tự (2X)"} • Thua = 0 điểm`
+              }
+              rows={matching}
+              currentUserId={user?.id}
+              loading={loading}
+              scoreLabel="Điểm"
+              gradient="from-teal-500 to-cyan-500"
+              emptyText="Chưa có ai chơi dạng này. Hãy là người đầu tiên!"
+            />
+          </>
         )}
       </Card>
 
@@ -173,8 +238,8 @@ export function Leaderboard() {
           Cách tính điểm chăm chỉ
         </h3>
         <ul className="text-sm text-foreground/80 space-y-1">
-          <li>• <b>Quiz</b>: <code>max(0, 1000 - thời_gian×5 + đúng×50)</code> + bonus 200 nếu trả lời đúng hết 10 câu</li>
-          <li>• <b>Matching</b>: <code>max(0, 1000 - thời_gian×5 + mạng_còn×100)</code></li>
+          <li>• <b>Quiz</b>: <code>max(0, đúng×100 - thời_gian×3 + 200 nếu perfect)</code> × hệ số độ khó • <b>0.5X (Dễ - Pinyin→Nghĩa)</b>, <b>1X (Thường - mix 3 dạng)</b>, <b>2X (Khó - điền chỗ trống)</b> • Câu sai = 0 điểm</li>
+          <li>• <b>Matching</b>: <code>max(0, mạng_còn×200 - thời_gian×3 + 200)</code> nếu thắng, <b>0 điểm nếu thua</b> • Hệ số: 1X, 0.5X (Nghĩa-Pinyin), 2X (Câu-Hán tự)</li>
           <li>• <b>Flashcard</b>: Mỗi từ ôn lại được +1 điểm chăm chỉ</li>
           <li>• <b>Tổng điểm chăm chỉ</b> = Quiz + Matching + Flashcard (cộng dồn tất cả các lần chơi)</li>
         </ul>
