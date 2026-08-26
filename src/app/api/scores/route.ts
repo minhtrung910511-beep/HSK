@@ -9,26 +9,32 @@ export async function POST(req: NextRequest) {
   try {
     const user = await getCurrentUser();
     if (!user) {
+      console.error("[POST /api/scores] No user - not authenticated");
       return NextResponse.json({ error: "Chưa đăng nhập" }, { status: 401 });
     }
     const body = await req.json();
-    const scoreModule = (body.module || "").toString(); // "quiz" | "matching" | "flashcard_review"
+    const scoreModule = (body.module || "").toString();
     const score = Math.floor(parseFloat(body.score) * 10) / 10;
     const detail = body.detail ? JSON.stringify(body.detail) : null;
 
+    console.log(`[POST /api/scores] user=${user.displayName}, module=${scoreModule}, score=${score}, detail=${detail}`);
+
     if (!["quiz", "matching", "flashcard_review", "advanced_quiz"].includes(scoreModule)) {
+      console.error(`[POST /api/scores] Invalid module: ${scoreModule}`);
       return NextResponse.json({ error: "Module không hợp lệ" }, { status: 400 });
     }
     if (isNaN(score) || score < 0) {
+      console.error(`[POST /api/scores] Invalid score: ${score}`);
       return NextResponse.json({ error: "Điểm không hợp lệ" }, { status: 400 });
     }
 
     const created = await db.score.create({
       data: { userId: user.id, module: scoreModule, score, detail },
     });
+    console.log(`[POST /api/scores] ✓ Saved: id=${created.id}, score=${created.score}`);
     return NextResponse.json({ ok: true, score: created });
   } catch (e) {
-    console.error("submit score error", e);
+    console.error("[POST /api/scores] ERROR:", e);
     return NextResponse.json({ error: "Lỗi server" }, { status: 500 });
   }
 }

@@ -135,16 +135,21 @@ export function useAuth() {
   const submitScore = useCallback(
     async (module: "quiz" | "matching" | "flashcard_review" | "advanced_quiz", score: number, detail?: Record<string, unknown>) => {
       try {
+        console.log(`[submitScore] Submitting: module=${module}, score=${score}, detail=${JSON.stringify(detail)}`);
         const res = await authFetch("/api/scores", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ module, score, detail }),
         });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error);
+        if (!res.ok) {
+          console.error(`[submitScore] FAILED: HTTP ${res.status}, error=${data.error}`);
+          throw new Error(data.error);
+        }
+        console.log(`[submitScore] SUCCESS: saved score ${score} for module ${module}`);
         return data;
       } catch (e) {
-        console.error("submit score failed", e);
+        console.error("[submitScore] Error:", e);
         return null;
       }
     },
