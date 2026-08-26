@@ -52,3 +52,26 @@ prompt
 server.log
 # Skills directory
 /skills/
+
+# DB files
+db/*.db
+db/*.db-journal
+db/*.db-wal
+.last-score-reset
+
+# Env files (chứa secrets)
+.env
+.env.local
+.env.production
+
+# Logs
+dev.log
+server.log
+*.log
+
+# Build
+.next/standalone
+.next/dev
+
+# Uploads (user data)
+upload/
