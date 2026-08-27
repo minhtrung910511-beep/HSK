@@ -67,11 +67,11 @@ export function Leaderboard() {
     fetchAll();
   }, [fetchAll]);
 
-  // Auto-refresh mỗi 5 giây
+  // Auto-refresh mỗi 30 giây (giảm load DB - trước là 5s)
   useEffect(() => {
     const interval = setInterval(() => {
       fetchAll();
-    }, 5000);
+    }, 30000);
     return () => clearInterval(interval);
   }, [fetchAll]);
 
