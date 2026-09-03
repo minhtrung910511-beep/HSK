@@ -111,16 +111,14 @@ export function Quiz({ questionCount = QUESTION_COUNT, onQuizComplete, onScoreCo
     const qs: Question[] = pool.map(word => {
       const mode = modes[Math.floor(Math.random() * modes.length)];
       // Lấy distractors nhưng loại bỏ những từ có đáp án trùng với câu hỏi
-      // vd: "vi-to-han" với từ "晚安" → đáp án cũng là "晚安" → loại
+      // Lọc KÉP: cả Hán tự trùng VÀ nghĩa trùng đều bị loại
       const allDistractors = vocab.filter(w => {
         if (w.id === word.id) return false;
-        if (mode === "han-to-vi" || mode === "pinyin-to-vi") {
-          // Đáp án là meaning → loại từ có meaning trùng
-          return w.meaning !== word.meaning;
-        } else {
-          // Đáp án là han → loại từ có han trùng
-          return w.han !== word.han;
-        }
+        // Luôn loại bỏ từ có Hán tự trùng (để không có đáp án y hệt câu hỏi)
+        if (w.han === word.han) return false;
+        // Luôn loại bỏ từ có nghĩa trùng (để không có đáp án cùng nghĩa)
+        if (w.meaning === word.meaning) return false;
+        return true;
       });
       const distractors = shuffle(allDistractors).slice(0, 3);
       let correct: string;
@@ -150,11 +148,16 @@ export function Quiz({ questionCount = QUESTION_COUNT, onQuizComplete, onScoreCo
         correct = word.han;
         options = shuffle([correct, ...distractors.map(d => d.han)]);
       }
-      // Deduplicate options (trong trường hợp nhiều distractors có cùng đáp án)
+      // Deduplicate options - đảm bảo 4 đáp án khác nhau hoàn toàn
       const uniqueOptions = [...new Set(options)];
       // Nếu không đủ 4 options, bổ sung thêm
       while (uniqueOptions.length < 4) {
-        const extra = shuffle(vocab.filter(w => w.id !== word.id)).find(w => {
+        const extra = shuffle(vocab.filter(w => {
+          if (w.id === word.id) return false;
+          if (w.han === word.han) return false;
+          if (w.meaning === word.meaning) return false;
+          return true;
+        })).find(w => {
           if (mode === "han-to-vi" || mode === "pinyin-to-vi") {
             return !uniqueOptions.includes(w.meaning);
           } else {

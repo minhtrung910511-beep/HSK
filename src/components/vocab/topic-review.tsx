@@ -109,11 +109,15 @@ export function TopicReview({ topicId, onExit, onServerSubmit, onComplete }: Top
     const qs: Question[] = pool.map(word => {
       const mode = modes[Math.floor(Math.random() * modes.length)];
       // Lọc distractors: loại bỏ từ có đáp án trùng với câu hỏi
+      // Lọc KÉP: cả Hán tự trùng VÀ nghĩa trùng đều bị loại
       const allDistractors = vocab.filter(w => {
         if (w.id === word.id) return false;
-        if (mode === "han-to-pinyin") return w.pinyin !== word.pinyin;
-        if (mode === "han-to-meaning") return w.meaning !== word.meaning;
-        if (mode === "meaning-to-han" || mode === "fill-blank") return w.han !== word.han;
+        // Luôn loại bỏ từ có Hán tự trùng
+        if (w.han === word.han) return false;
+        // Luôn loại bỏ từ có nghĩa trùng
+        if (w.meaning === word.meaning) return false;
+        // Loại bỏ từ có pinyin trùng (cho mode han-to-pinyin)
+        if (mode === "han-to-pinyin" && w.pinyin === word.pinyin) return false;
         return true;
       });
       const distractors = shuffle(allDistractors).slice(0, 3);
@@ -141,10 +145,16 @@ export function TopicReview({ topicId, onExit, onServerSubmit, onComplete }: Top
         correct = word.han;
         options = shuffle([correct, ...distractors.map(d => d.han)]);
       }
-      // Deduplicate options
+      // Deduplicate options - đảm bảo 4 đáp án khác nhau hoàn toàn
       const uniqueOptions = [...new Set(options)];
       while (uniqueOptions.length < 4) {
-        const extra = shuffle(vocab.filter(w => w.id !== word.id)).find(w => {
+        const extra = shuffle(vocab.filter(w => {
+          if (w.id === word.id) return false;
+          if (w.han === word.han) return false;
+          if (w.meaning === word.meaning) return false;
+          if (mode === "han-to-pinyin" && w.pinyin === word.pinyin) return false;
+          return true;
+        })).find(w => {
           if (mode === "han-to-pinyin") return !uniqueOptions.includes(w.pinyin);
           if (mode === "han-to-meaning") return !uniqueOptions.includes(w.meaning);
           return !uniqueOptions.includes(w.han);
