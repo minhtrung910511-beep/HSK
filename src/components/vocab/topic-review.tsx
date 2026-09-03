@@ -108,7 +108,15 @@ export function TopicReview({ topicId, onExit, onServerSubmit, onComplete }: Top
     const modes: QuizMode[] = ["han-to-pinyin", "han-to-meaning", "meaning-to-han", "fill-blank"];
     const qs: Question[] = pool.map(word => {
       const mode = modes[Math.floor(Math.random() * modes.length)];
-      const distractors = shuffle(vocab.filter(w => w.id !== word.id)).slice(0, 3);
+      // Lọc distractors: loại bỏ từ có đáp án trùng với câu hỏi
+      const allDistractors = vocab.filter(w => {
+        if (w.id === word.id) return false;
+        if (mode === "han-to-pinyin") return w.pinyin !== word.pinyin;
+        if (mode === "han-to-meaning") return w.meaning !== word.meaning;
+        if (mode === "meaning-to-han" || mode === "fill-blank") return w.han !== word.han;
+        return true;
+      });
+      const distractors = shuffle(allDistractors).slice(0, 3);
       let correct: string;
       let options: string[];
       let blankSentence: string | undefined;
@@ -133,6 +141,21 @@ export function TopicReview({ topicId, onExit, onServerSubmit, onComplete }: Top
         correct = word.han;
         options = shuffle([correct, ...distractors.map(d => d.han)]);
       }
+      // Deduplicate options
+      const uniqueOptions = [...new Set(options)];
+      while (uniqueOptions.length < 4) {
+        const extra = shuffle(vocab.filter(w => w.id !== word.id)).find(w => {
+          if (mode === "han-to-pinyin") return !uniqueOptions.includes(w.pinyin);
+          if (mode === "han-to-meaning") return !uniqueOptions.includes(w.meaning);
+          return !uniqueOptions.includes(w.han);
+        });
+        if (extra) {
+          if (mode === "han-to-pinyin") uniqueOptions.push(extra.pinyin);
+          else if (mode === "han-to-meaning") uniqueOptions.push(extra.meaning);
+          else uniqueOptions.push(extra.han);
+        } else break;
+      }
+      options = shuffle(uniqueOptions);
       return { word, options, correct, mode, blankSentence, blankPinyin };
     });
     setQuestions(qs);
