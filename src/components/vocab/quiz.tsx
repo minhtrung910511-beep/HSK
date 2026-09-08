@@ -11,13 +11,13 @@ import { VocabWord } from "@/lib/vocab-data";
 import { useVocab } from "@/lib/vocab-context";
 import { useAuth } from "@/hooks/use-auth";
 
-type QuizMode = "han-to-vi" | "vi-to-han" | "pinyin-to-han" | "pinyin-to-vi" | "fill-blank";
+type QuizMode = "han-to-vi" | "vi-to-han" | "pinyin-to-han" | "pinyin-to-vi" | "fill-blank" | "fill-blank-vi";
 type QuizDifficulty = "easy" | "normal" | "hard";
 
 // Hệ số điểm theo độ khó:
 // - easy: 0.5X (chỉ Pinyin→Nghĩa, dễ nhất - đọc pinyin chọn nghĩa)
-// - normal: 1X (mix 3 dạng: Hán→Nghĩa, Nghĩa→Hán, Pinyin→Hán)
-// - hard: 2X (chỉ dạng điền chỗ trống, khó nhất)
+// - normal: 1X (mix: Pinyin→Nghĩa, Hán→Nghĩa, Nghĩa→Hán, Pinyin→Hán, điền nghĩa TV vào câu)
+// - hard: 2X (chỉ dạng điền Hán tự vào chỗ trống trong câu)
 function getDifficultyMultiplier(difficulty: QuizDifficulty): number {
   if (difficulty === "easy") return 0.5;
   if (difficulty === "hard") return 2;
@@ -27,7 +27,8 @@ function getDifficultyMultiplier(difficulty: QuizDifficulty): number {
 function getModesForDifficulty(difficulty: QuizDifficulty): QuizMode[] {
   if (difficulty === "easy") return ["pinyin-to-vi"];
   if (difficulty === "hard") return ["fill-blank"];
-  return ["han-to-vi", "vi-to-han", "pinyin-to-han"]; // normal
+  // Normal: mix 5 dạng gồm cả pinyin→nghĩa (1X), hán→nghĩa (1.5X logic trong prompt), điền nghĩa TV
+  return ["han-to-vi", "vi-to-han", "pinyin-to-han", "pinyin-to-vi", "fill-blank-vi"];
 }
 
 interface QuizProps {
@@ -43,6 +44,7 @@ interface Question {
   mode: QuizMode;
   blankSentence?: string;
   blankPinyin?: string;
+  blankViSentence?: string;  // Câu ví dụ tiếng Việt có chỗ trống (cho fill-blank-vi)
 }
 
 function shuffle<T>(arr: T[]): T[] {
@@ -125,6 +127,7 @@ export function Quiz({ questionCount = QUESTION_COUNT, onQuizComplete, onScoreCo
       let options: string[];
       let blankSentence: string | undefined;
       let blankPinyin: string | undefined;
+      let blankViSentence: string | undefined;
       if (mode === "han-to-vi") {
         correct = word.meaning;
         options = shuffle([correct, ...distractors.map(d => d.meaning)]);
@@ -143,6 +146,17 @@ export function Quiz({ questionCount = QUESTION_COUNT, onQuizComplete, onScoreCo
           blankPinyin = word.examplePinyin || "";
         } else {
           blankSentence = undefined;
+        }
+      } else if (mode === "fill-blank-vi") {
+        // Điền nghĩa tiếng Việt vào chỗ trống trong câu ví dụ tiếng Việt
+        correct = word.meaning;
+        options = shuffle([correct, ...distractors.map(d => d.meaning)]);
+        const exVi = word.exampleVi || "";
+        if (exVi && exVi.includes(word.meaning)) {
+          blankViSentence = exVi.replace(word.meaning, "＿＿＿");
+        } else {
+          // Fallback: nếu câu ví dụ TV không chứa nghĩa, tạo câu giả
+          blankViSentence = `＿＿＿ (${word.han})`;
         }
       } else {
         correct = word.han;
@@ -173,7 +187,7 @@ export function Quiz({ questionCount = QUESTION_COUNT, onQuizComplete, onScoreCo
         } else break;
       }
       options = shuffle(uniqueOptions);
-      return { word, options, correct, mode, blankSentence, blankPinyin };
+      return { word, options, correct, mode, blankSentence, blankPinyin, blankViSentence };
     });
     setQuestions(qs);
     setCurrent(0);
@@ -289,7 +303,7 @@ export function Quiz({ questionCount = QUESTION_COUNT, onQuizComplete, onScoreCo
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 w-full max-w-md">
           {([
             { id: "easy", label: "Dễ", desc: "Pinyin → Nghĩa (đọc pinyin chọn nghĩa) • 0.5X điểm", emoji: "🟢" },
-            { id: "normal", label: "Thường", desc: "Mix 3 dạng: Hán→Nghĩa, Nghĩa→Hán, Pinyin→Hán • 1X điểm", emoji: "🟡" },
+            { id: "normal", label: "Thường", desc: "Mix 5 dạng: Pinyin→Nghĩa, Hán→Nghĩa, Nghĩa→Hán, Pinyin→Hán, Điền nghĩa TV • 1X điểm", emoji: "🟡" },
             { id: "hard", label: "Khó", desc: "Điền chỗ trống trong câu • 2X điểm", emoji: "🔴" },
           ] as { id: QuizDifficulty; label: string; desc: string; emoji: string }[]).map(opt => (
             <button
@@ -371,7 +385,9 @@ export function Quiz({ questionCount = QUESTION_COUNT, onQuizComplete, onScoreCo
   // ===== PLAYING =====
   const q = questions[current];
   if (!q) return null;
-  const effectiveMode = q.mode === "fill-blank" && !q.blankSentence ? "han-to-vi" : q.mode;
+  // Fallback: nếu fill-blank không có câu, chuyển sang han-to-vi
+  // Nếu fill-blank-vi không có câu, chuyển sang han-to-vi
+  const effectiveMode = ((q.mode === "fill-blank" && !q.blankSentence) || (q.mode === "fill-blank-vi" && !q.blankViSentence)) ? "han-to-vi" : q.mode;
 
   const promptLabel = effectiveMode === "han-to-vi"
     ? "Chọn nghĩa tiếng Việt"
@@ -381,6 +397,8 @@ export function Quiz({ questionCount = QUESTION_COUNT, onQuizComplete, onScoreCo
     ? "Chọn Hán tự theo pinyin"
     : effectiveMode === "pinyin-to-vi"
     ? "Đọc pinyin chọn nghĩa tiếng Việt"
+    : effectiveMode === "fill-blank-vi"
+    ? "Chọn nghĩa điền vào chỗ trống (câu tiếng Việt)"
     : "Chọn Hán tự điền vào chỗ trống";
 
   return (
@@ -409,6 +427,15 @@ export function Quiz({ questionCount = QUESTION_COUNT, onQuizComplete, onScoreCo
               {q.blankSentence}
             </div>
             <Button variant="ghost" size="icon" onClick={() => speak(q.word.example || q.word.han)}>
+              <Volume2 className="h-5 w-5" />
+            </Button>
+          </div>
+        ) : effectiveMode === "fill-blank-vi" && q.blankViSentence ? (
+          <div className="flex flex-col items-center gap-3 w-full">
+            <div className="text-xl md:text-2xl font-semibold text-center leading-relaxed text-foreground">
+              {q.blankViSentence}
+            </div>
+            <Button variant="ghost" size="icon" onClick={() => speak(q.word.han)}>
               <Volume2 className="h-5 w-5" />
             </Button>
           </div>
