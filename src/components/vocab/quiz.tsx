@@ -120,6 +120,17 @@ export function Quiz({ questionCount = QUESTION_COUNT, onQuizComplete, onScoreCo
         if (w.han === word.han) return false;
         // Luôn loại bỏ từ có nghĩa trùng (để không có đáp án cùng nghĩa)
         if (w.meaning === word.meaning) return false;
+        // Với fill-blank: loại bỏ từ có Hán tự là chuỗi con của từ đang hỏi
+        // (vd: "他们" chứa "他" → loại, vì điền "他们" vào chỗ trống cũng đúng ngữ pháp)
+        if (mode === "fill-blank" && word.han.length < w.han.length) {
+          if (w.han.includes(word.han) || word.han.includes(w.han)) return false;
+        }
+        // Với fill-blank: loại bỏ từ mà Hán tự của nó chứa Hán tự đang hỏi (hoặc ngược lại)
+        // để đảm bảo chỉ có 1 đáp án đúng duy nhất
+        if (mode === "fill-blank" || mode === "vi-to-han" || mode === "pinyin-to-han") {
+          // Loại bỏ từ có Hán tự bao chứa nhau (substring)
+          if (w.han.includes(word.han) || word.han.includes(w.han)) return false;
+        }
         return true;
       });
       const distractors = shuffle(allDistractors).slice(0, 3);
@@ -170,16 +181,20 @@ export function Quiz({ questionCount = QUESTION_COUNT, onQuizComplete, onScoreCo
           if (w.id === word.id) return false;
           if (w.han === word.han) return false;
           if (w.meaning === word.meaning) return false;
+          // Loại bỏ từ có Hán tự bao chứa nhau (substring)
+          if (mode === "fill-blank" || mode === "vi-to-han" || mode === "pinyin-to-han") {
+            if (w.han.includes(word.han) || word.han.includes(w.han)) return false;
+          }
           return true;
         })).find(w => {
-          if (mode === "han-to-vi" || mode === "pinyin-to-vi") {
+          if (mode === "han-to-vi" || mode === "pinyin-to-vi" || mode === "fill-blank-vi") {
             return !uniqueOptions.includes(w.meaning);
           } else {
             return !uniqueOptions.includes(w.han);
           }
         });
         if (extra) {
-          if (mode === "han-to-vi" || mode === "pinyin-to-vi") {
+          if (mode === "han-to-vi" || mode === "pinyin-to-vi" || mode === "fill-blank-vi") {
             uniqueOptions.push(extra.meaning);
           } else {
             uniqueOptions.push(extra.han);

@@ -118,6 +118,11 @@ export function TopicReview({ topicId, onExit, onServerSubmit, onComplete }: Top
         if (w.meaning === word.meaning) return false;
         // Loại bỏ từ có pinyin trùng (cho mode han-to-pinyin)
         if (mode === "han-to-pinyin" && w.pinyin === word.pinyin) return false;
+        // Loại bỏ từ có Hán tự bao chứa nhau (substring)
+        // vd: "他们" chứa "他" → loại, để chỉ có 1 đáp án đúng
+        if (mode === "fill-blank" || mode === "meaning-to-han") {
+          if (w.han.includes(word.han) || word.han.includes(w.han)) return false;
+        }
         return true;
       });
       const distractors = shuffle(allDistractors).slice(0, 3);
@@ -153,6 +158,10 @@ export function TopicReview({ topicId, onExit, onServerSubmit, onComplete }: Top
           if (w.han === word.han) return false;
           if (w.meaning === word.meaning) return false;
           if (mode === "han-to-pinyin" && w.pinyin === word.pinyin) return false;
+          // Loại bỏ từ có Hán tự bao chứa nhau (substring)
+          if (mode === "fill-blank" || mode === "meaning-to-han") {
+            if (w.han.includes(word.han) || word.han.includes(w.han)) return false;
+          }
           return true;
         })).find(w => {
           if (mode === "han-to-pinyin") return !uniqueOptions.includes(w.pinyin);
