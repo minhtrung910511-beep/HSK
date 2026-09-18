@@ -10,6 +10,7 @@ import { Dashboard } from "@/components/vocab/dashboard";
 import { Flashcard } from "@/components/vocab/flashcard";
 import { Quiz } from "@/components/vocab/quiz";
 import { Matching } from "@/components/vocab/matching";
+import { Translation } from "@/components/vocab/translation";
 import { AuthModal } from "@/components/vocab/auth-modal";
 import { EditProfileModal } from "@/components/vocab/edit-profile-modal";
 import { Leaderboard } from "@/components/vocab/leaderboard";
@@ -61,7 +62,7 @@ export default function HomePage() {
     { id: "home",        label: "Trang chủ",   icon: <Home className="h-5 w-5" /> },
     { id: "flashcard",   label: "Flashcard",   icon: <Layers className="h-5 w-5" /> },
     { id: "quiz",        label: "Quiz",        icon: <HelpCircle className="h-5 w-5" /> },
-    { id: "matching",    label: "Ghép cặp",    icon: <Shuffle className="h-5 w-5" /> },
+    { id: "matching",    label: "Dịch nghĩa",  icon: <Shuffle className="h-5 w-5" /> },
     { id: "leaderboard", label: "Xếp hạng",    icon: <Trophy className="h-5 w-5" /> },
   ];
 
@@ -278,7 +279,7 @@ export default function HomePage() {
             transition={{ duration: 0.3 }}
             className="max-w-3xl mx-auto"
           >
-            <Matching
+            <Translation
               onComplete={recordMatchingScore}
               onServerSubmit={async (score, detail) => {
                 if (user) await submitScore("matching", score, detail);
