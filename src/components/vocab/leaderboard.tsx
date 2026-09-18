@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
 
-type Tab = "diligence" | "quiz" | "matching";
+type Tab = "diligence" | "quiz" | "translation" | "matching";
 type Range = "daily" | "weekly" | "monthly" | "all";
 type QuizSub = "all" | "easy" | "normal" | "hard";
 type MatchingSub = "all" | "han-vi" | "han-pinyin" | "vi-han" | "vi-pinyin" | "blank-han";
@@ -39,6 +39,7 @@ export function Leaderboard() {
   const [matchingSub, setMatchingSub] = useState<MatchingSub>("all");
   const [diligence, setDiligence] = useState<DiligenceRow[]>([]);
   const [quiz, setQuiz] = useState<ModuleRow[]>([]);
+  const [translation, setTranslation] = useState<ModuleRow[]>([]);
   const [matching, setMatching] = useState<ModuleRow[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -48,13 +49,15 @@ export function Leaderboard() {
       const rangeQuery = range !== "all" ? `&range=${range}` : "";
       const quizSubQuery = quizSub !== "all" ? `&sub=${quizSub}` : "";
       const matchingSubQuery = matchingSub !== "all" ? `&sub=${matchingSub}` : "";
-      const [d, q, m] = await Promise.all([
+      const [d, q, t, m] = await Promise.all([
         fetch(`/api/scores?limit=500${rangeQuery}`).then((r) => r.json()),
         fetch(`/api/scores?module=quiz&limit=500${rangeQuery}${quizSubQuery}`).then((r) => r.json()),
+        fetch(`/api/scores?module=matching&limit=500${rangeQuery}&sub=vi-han`).then((r) => r.json()),
         fetch(`/api/scores?module=matching&limit=500${rangeQuery}${matchingSubQuery}`).then((r) => r.json()),
       ]);
       setDiligence(d.leaderboard || []);
       setQuiz(q.leaderboard || []);
+      setTranslation(t.leaderboard || []);
       setMatching(m.leaderboard || []);
     } catch (e) {
       // ignore
@@ -85,9 +88,10 @@ export function Leaderboard() {
   }, [fetchAll]);
 
   const tabs: { id: Tab; label: string; icon: React.ReactNode; gradient: string }[] = [
-    { id: "diligence", label: "Chăm chỉ tổng", icon: <Flame className="h-4 w-4" />, gradient: "from-orange-400 to-red-400" },
-    { id: "quiz",      label: "Quiz Top",     icon: <Trophy className="h-4 w-4" />, gradient: "from-violet-400 to-fuchsia-400" },
-    { id: "matching",  label: "Matching Top", icon: <Zap className="h-4 w-4" />,   gradient: "from-teal-400 to-cyan-400" },
+    { id: "diligence",   label: "Chăm chỉ tổng", icon: <Flame className="h-4 w-4" />, gradient: "from-orange-400 to-red-400" },
+    { id: "quiz",        label: "Quiz Top",     icon: <Trophy className="h-4 w-4" />, gradient: "from-violet-400 to-fuchsia-400" },
+    { id: "translation", label: "Dịch nghĩa Top", icon: <Check className="h-4 w-4" />, gradient: "from-teal-400 to-cyan-400" },
+    { id: "matching",    label: "Ghép cặp Top", icon: <Zap className="h-4 w-4" />,   gradient: "from-sky-400 to-blue-400" },
   ];
 
   const ranges: { id: Range; label: string }[] = [
@@ -189,6 +193,18 @@ export function Leaderboard() {
             />
           </>
         )}
+        {tab === "translation" && (
+          <ModuleBoard
+            title="✍️ Bảng xếp hạng Dịch nghĩa"
+            description="Top điểm cao nhất mỗi người - Tự gõ chữ Hán theo nghĩa tiếng Việt • Hệ số 1X • Câu sai = 0 điểm"
+            rows={translation}
+            currentUserId={user?.id}
+            loading={loading}
+            scoreLabel="Điểm"
+            gradient="from-teal-500 to-cyan-500"
+            emptyText="Chưa có ai chơi Dịch nghĩa. Hãy là người đầu tiên!"
+          />
+        )}
         {tab === "matching" && (
           <>
             {/* Sub-tabs cho Matching: dạng ghép cặp */}
@@ -242,7 +258,8 @@ export function Leaderboard() {
           <li>• <b>Quiz</b>: <code>max(0, đúng×100 - thời_gian×3 + 200 nếu perfect)</code> × hệ số độ khó • <b>0.5X (Dễ - Pinyin→Nghĩa)</b>, <b>1X (Thường - mix 3 dạng)</b>, <b>2X (Khó - điền chỗ trống)</b> • Câu sai = 0 điểm</li>
           <li>• <b>Matching</b>: <code>max(0, mạng_còn×200 - thời_gian×3 + 200)</code> nếu thắng, <b>0 điểm nếu thua</b> • Hệ số: 1X, 0.5X (Nghĩa-Pinyin), 2X (Câu-Hán tự)</li>
           <li>• <b>Flashcard</b>: Mỗi từ ôn lại được +1 điểm chăm chỉ</li>
-          <li>• <b>Tổng điểm chăm chỉ</b> = Quiz + Matching + Flashcard (cộng dồn tất cả các lần chơi)</li>
+          <li>• <b>Dịch nghĩa</b>: <code>max(0, đúng×100 - thời_gian×3 + 200 nếu perfect)</code> × 1X • Tự gõ chữ Hán • Câu sai = 0 điểm</li>
+          <li>• <b>Tổng điểm chăm chỉ</b> = Quiz + Dịch nghĩa + Ghép cặp + Flashcard (cộng dồn tất cả các lần chơi)</li>
         </ul>
       </Card>
     </div>

@@ -170,7 +170,7 @@ export function Translation({ questionCount = QUESTION_COUNT, onComplete, onServ
     const points = computeTranslationScore(score, questions.length, totalSeconds);
     onComplete?.(points);
     if (user) {
-      submitScore("quiz", points, { time: totalSeconds, correct: score, total: questions.length, difficulty: "translation" }).catch(() => {});
+      submitScore("matching", points, { time: totalSeconds, correct: score, total: questions.length, mode: "vi-han" }).catch(() => {});
     }
     if (onServerSubmit) {
       onServerSubmit(points, { time: totalSeconds, correct: score, total: questions.length }).catch(() => {});
