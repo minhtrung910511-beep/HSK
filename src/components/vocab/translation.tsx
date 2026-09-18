@@ -354,6 +354,7 @@ export function Translation({ questionCount = QUESTION_COUNT, onComplete, onServ
               )}
               <div className="mt-2 text-lg">
                 Đáp án đúng: <span className="text-2xl font-bold">{q.correct}</span>
+                <span className="text-base font-normal italic text-muted-foreground ml-2">{q.word.pinyin}</span>
               </div>
               <div className="mt-2 flex items-center justify-center gap-2">
                 <Button variant="ghost" size="sm" onClick={() => speak(q.word.han)}>
