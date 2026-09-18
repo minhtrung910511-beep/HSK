@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { Check, X, Clock, Trophy, RotateCcw, Volume2, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -19,7 +19,6 @@ interface TranslationProps {
 
 interface Question {
   word: VocabWord;
-  options: string[];
   correct: string;
 }
 
@@ -33,7 +32,7 @@ function shuffle<T>(arr: T[]): T[] {
 }
 
 const QUESTION_COUNT = 10;
-const TIME_LIMIT = 20;
+const TIME_LIMIT = 30;
 
 function computeTranslationScore(correct: number, total: number, totalSeconds: number): number {
   const perfectBonus = correct === total ? 200 : 0;
@@ -58,35 +57,23 @@ export function Translation({ questionCount = QUESTION_COUNT, onComplete, onServ
   const vocab = useVocab();
   const [questions, setQuestions] = useState<Question[]>([]);
   const [current, setCurrent] = useState(0);
-  const [selected, setSelected] = useState<string | null>(null);
+  const [userInput, setUserInput] = useState("");
   const [checked, setChecked] = useState(false);
   const [score, setScore] = useState(0);
   const [timeLeft, setTimeLeft] = useState(TIME_LIMIT);
   const [phase, setPhase] = useState<"intro" | "playing" | "result">("intro");
   const [totalSeconds, setTotalSeconds] = useState(0);
   const startTimeRef = useRef<number | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const completedRef = useRef(false);
   const submittedRef = useRef(false);
 
   const generateQuiz = useCallback(() => {
     const pool = shuffle(vocab).slice(0, Math.min(questionCount, vocab.length));
-    const qs: Question[] = pool.map(word => {
-      // Lọc distractors: loại từ có Hán tự trùng, nghĩa trùng, hoặc bao chứa nhau
-      const allDistractors = vocab.filter(w => {
-        if (w.id === word.id) return false;
-        if (w.han === word.han) return false;
-        if (w.meaning === word.meaning) return false;
-        if (w.han.includes(word.han) || word.han.includes(w.han)) return false;
-        return true;
-      });
-      const distractors = shuffle(allDistractors).slice(0, 3);
-      const correct = word.han;
-      const options = shuffle([correct, ...distractors.map(d => d.han)]);
-      return { word, options, correct };
-    });
+    const qs: Question[] = pool.map(word => ({ word, correct: word.han }));
     setQuestions(qs);
     setCurrent(0);
-    setSelected(null);
+    setUserInput("");
     setChecked(false);
     setScore(0);
     setTimeLeft(TIME_LIMIT);
@@ -125,13 +112,20 @@ export function Translation({ questionCount = QUESTION_COUNT, onComplete, onServ
     return () => clearTimeout(t);
   }, [phase, checked, timeLeft]);
 
+  // Focus input khi sang câu mới
+  useEffect(() => {
+    if (phase === "playing" && !checked && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [phase, checked, current]);
+
   // Phím Enter
   useEffect(() => {
     if (phase !== "playing") return;
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Enter") {
         e.preventDefault();
-        if (!checked && selected !== null) {
+        if (!checked && userInput.trim()) {
           handleCheck();
         } else if (checked) {
           next();
@@ -140,17 +134,15 @@ export function Translation({ questionCount = QUESTION_COUNT, onComplete, onServ
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [phase, selected, checked, current, questions.length]);
-
-  const handleSelect = (opt: string) => {
-    if (checked) return;
-    setSelected(opt);
-  };
+  }, [phase, userInput, checked, current, questions.length]);
 
   const handleCheck = () => {
-    if (selected === null) return;
+    if (!userInput.trim()) return;
     setChecked(true);
-    if (selected === questions[current].correct) {
+    // So sánh: bỏ khoảng trắng, so sánh chính xác
+    const answer = userInput.trim();
+    const correct = questions[current].correct;
+    if (answer === correct) {
       setScore(s => s + 1);
     }
   };
@@ -161,7 +153,7 @@ export function Translation({ questionCount = QUESTION_COUNT, onComplete, onServ
       return;
     }
     setCurrent(c => c + 1);
-    setSelected(null);
+    setUserInput("");
     setChecked(false);
     setTimeLeft(TIME_LIMIT);
   };
@@ -193,7 +185,10 @@ export function Translation({ questionCount = QUESTION_COUNT, onComplete, onServ
         <div>
           <h3 className="text-2xl font-bold text-foreground mb-2">Dịch nghĩa</h3>
           <p className="text-muted-foreground max-w-md">
-            {questionCount} câu • {TIME_LIMIT}s/câu • Thấy nghĩa tiếng Việt → chọn chữ Hán đúng • Có nút kiểm tra!
+            {questionCount} câu • {TIME_LIMIT}s/câu • Thấy nghĩa tiếng Việt → <b>tự gõ chữ Hán</b> vào ô trống • Có nút kiểm tra!
+          </p>
+          <p className="text-sm text-teal-600 font-medium mt-2">
+            ✍️ Gõ chữ Hán vào ô trống → bấm "Kiểm tra" để xem đúng/sai
           </p>
         </div>
         {!user && !authLoading && (
@@ -253,8 +248,8 @@ export function Translation({ questionCount = QUESTION_COUNT, onComplete, onServ
   const q = questions[current];
   if (!q) return null;
 
-  const isCorrect = selected === q.correct;
-  const isWrong = selected !== null && selected !== q.correct;
+  const isCorrect = userInput.trim() === q.correct;
+  const isEmpty = !userInput.trim() && timeLeft <= 0;
 
   return (
     <div className="flex flex-col gap-5">
@@ -275,88 +270,94 @@ export function Translation({ questionCount = QUESTION_COUNT, onComplete, onServ
 
       {/* Question - hiển thị nghĩa tiếng Việt */}
       <Card className="p-6 md:p-8 flex flex-col items-center gap-4 bg-gradient-to-br from-teal-50 to-cyan-50 border-2 border-teal-100">
-        <div className="text-xs uppercase tracking-wider text-muted-foreground">Chọn chữ Hán đúng với nghĩa</div>
+        <div className="text-xs uppercase tracking-wider text-muted-foreground">Gõ chữ Hán đúng với nghĩa sau</div>
         <div className="text-3xl md:text-4xl font-bold text-center text-foreground">
           {q.word.meaning}
         </div>
         {q.word.pos && (
           <div className="text-sm text-muted-foreground">{q.word.pos}</div>
         )}
+        {q.word.pinyin && checked && (
+          <div className="text-base text-teal-600 italic">{q.word.pinyin}</div>
+        )}
       </Card>
 
-      {/* Options - 4 chữ Hán */}
-      <div className="grid grid-cols-2 gap-3">
-        {q.options.map(opt => {
-          const isOptCorrect = opt === q.correct;
-          const isOptSelected = opt === selected;
-          let cls = "border-2 hover:border-teal-300 hover:bg-teal-50 transition-all justify-center text-center";
-          if (checked) {
-            if (isOptCorrect) cls = "border-2 border-emerald-400 bg-emerald-50 text-emerald-700 justify-center text-center";
-            else if (isOptSelected) cls = "border-2 border-rose-400 bg-rose-50 text-rose-700 justify-center text-center";
-            else cls = "border-2 border-muted opacity-60 justify-center text-center";
-          } else if (isOptSelected) {
-            cls = "border-2 border-teal-500 bg-teal-50 text-teal-700 justify-center text-center scale-105";
-          }
-          return (
-            <Button
-              key={opt}
-              variant="outline"
-              className={`h-auto py-6 px-4 text-2xl md:text-3xl font-bold ${cls}`}
-              onClick={() => handleSelect(opt)}
+      {/* Input - ô để gõ chữ Hán */}
+      <div className="flex flex-col gap-3">
+        {!checked ? (
+          <>
+            <input
+              ref={inputRef}
+              type="text"
+              value={userInput}
+              onChange={(e) => setUserInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  if (userInput.trim()) handleCheck();
+                }
+              }}
+              placeholder="Gõ chữ Hán vào đây..."
+              className="w-full text-3xl md:text-4xl text-center font-bold py-6 px-4 rounded-2xl border-2 border-teal-200 bg-white focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-200 transition-all"
+              autoFocus
               disabled={checked}
+            />
+            <Button
+              size="lg"
+              onClick={handleCheck}
+              disabled={!userInput.trim()}
+              className="gap-2 bg-gradient-to-r from-teal-500 to-cyan-500 text-white"
             >
-              {opt}
-              {checked && isOptCorrect && <Check className="h-5 w-5 ml-2" />}
-              {checked && isOptSelected && !isOptCorrect && <X className="h-5 w-5 ml-2" />}
+              Kiểm tra (Enter)
             </Button>
-          );
-        })}
-      </div>
-
-      {/* Nút Kiểm tra / Câu tiếp theo */}
-      {!checked ? (
-        <Button
-          size="lg"
-          onClick={handleCheck}
-          disabled={selected === null}
-          className="gap-2 bg-gradient-to-r from-teal-500 to-cyan-500 text-white"
-        >
-          Kiểm tra (Enter)
-        </Button>
-      ) : (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col gap-3"
-        >
-          {/* Kết quả kiểm tra */}
-          <div className={`p-4 rounded-xl text-center font-semibold ${
-            isCorrect || (selected === null && timeLeft <= 0)
-              ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-              : "bg-rose-50 text-rose-700 border border-rose-200"
-          }`}>
-            {selected === null && timeLeft <= 0 ? (
-              <>⏰ Hết giờ! Đáp án đúng: <span className="text-2xl">{q.correct}</span></>
-            ) : isCorrect ? (
-              <>✅ Chính xác! {q.correct} = {q.word.meaning}</>
-            ) : (
-              <>❌ Sai! Đáp án đúng: <span className="text-2xl">{q.correct}</span></>
-            )}
-            <div className="mt-2 flex items-center justify-center gap-2">
-              <Button variant="ghost" size="sm" onClick={() => speak(q.word.han)}>
-                <Volume2 className="h-4 w-4" /> Nghe
-              </Button>
-            </div>
-          </div>
-          <Button
-            size="lg"
-            onClick={next}
-            className="gap-2 bg-gradient-to-r from-teal-500 to-cyan-500 text-white"
+          </>
+        ) : (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex flex-col gap-3"
           >
-            {current + 1 >= questions.length ? "Xem kết quả" : "Câu tiếp theo (Enter)"} <ArrowLeft className="h-4 w-4 rotate-180" />
-          </Button>
-        </motion.div>
-      )}
+            {/* Hiện đáp án user gõ */}
+            <div className="p-4 rounded-xl bg-white border-2 border-slate-200 text-center">
+              <div className="text-xs text-muted-foreground mb-1">Bạn đã gõ:</div>
+              <div className="text-3xl font-bold text-foreground">
+                {userInput.trim() || "(trống)"}
+              </div>
+            </div>
+
+            {/* Kết quả kiểm tra */}
+            <div className={`p-4 rounded-xl text-center font-semibold ${
+              isCorrect
+                ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                : "bg-rose-50 text-rose-700 border border-rose-200"
+            }`}>
+              {isCorrect ? (
+                <>✅ Chính xác!</>
+              ) : isEmpty ? (
+                <>⏰ Hết giờ!</>
+              ) : (
+                <>❌ Chưa đúng!</>
+              )}
+              <div className="mt-2 text-lg">
+                Đáp án đúng: <span className="text-2xl font-bold">{q.correct}</span>
+              </div>
+              <div className="mt-2 flex items-center justify-center gap-2">
+                <Button variant="ghost" size="sm" onClick={() => speak(q.word.han)}>
+                  <Volume2 className="h-4 w-4" /> Nghe phát âm
+                </Button>
+              </div>
+            </div>
+
+            <Button
+              size="lg"
+              onClick={next}
+              className="gap-2 bg-gradient-to-r from-teal-500 to-cyan-500 text-white"
+            >
+              {current + 1 >= questions.length ? "Xem kết quả" : "Câu tiếp theo (Enter)"} <ArrowLeft className="h-4 w-4 rotate-180" />
+            </Button>
+          </motion.div>
+        )}
+      </div>
     </div>
   );
 }
