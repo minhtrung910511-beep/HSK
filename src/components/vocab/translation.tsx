@@ -122,16 +122,21 @@ export function Translation({ questionCount = QUESTION_COUNT, onComplete, onServ
   }, [phase, checked, current]);
 
   // Phím Enter: lần 1 = kiểm tra, lần 2 = qua câu
+  // Dùng ref để track trạng thái checked mới nhất
+  const checkedRef = useRef(false);
+  const userInputRef = useRef("");
+  useEffect(() => { checkedRef.current = checked; }, [checked]);
+  useEffect(() => { userInputRef.current = userInput; }, [userInput]);
+
   useEffect(() => {
     if (phase !== "playing") return;
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Enter") {
         e.preventDefault();
         e.stopPropagation();
-        if (!checked) {
-          // Enter lần 1: kiểm tra kết quả (nếu đã gõ chữ)
-          const input = document.querySelector('input[data-translation-input]') as HTMLInputElement;
-          if (input && input.value.trim()) {
+        if (!checkedRef.current) {
+          // Enter lần 1: kiểm tra kết quả
+          if (userInputRef.current.trim()) {
             handleCheck();
           }
         } else {
@@ -140,9 +145,9 @@ export function Translation({ questionCount = QUESTION_COUNT, onComplete, onServ
         }
       }
     };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [phase, checked, current, questions.length]);
+    window.addEventListener("keydown", handler, true); // capture phase
+    return () => window.removeEventListener("keydown", handler, true);
+  }, [phase]); // chỉ depend trên phase, không depend checked/userInput
 
   const handleCheck = () => {
     if (!userInput.trim()) return;
