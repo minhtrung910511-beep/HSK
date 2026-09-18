@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Trophy, Crown, Medal, Flame, Zap, Target, RefreshCw, Calendar } from "lucide-react";
+import { Trophy, Crown, Medal, Flame, Zap, Target, RefreshCw, Calendar, Check } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
