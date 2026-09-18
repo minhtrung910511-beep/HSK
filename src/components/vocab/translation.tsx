@@ -121,22 +121,28 @@ export function Translation({ questionCount = QUESTION_COUNT, onComplete, onServ
     }
   }, [phase, checked, current]);
 
-  // Phím Enter
+  // Phím Enter: lần 1 = kiểm tra, lần 2 = qua câu
   useEffect(() => {
     if (phase !== "playing") return;
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Enter") {
         e.preventDefault();
-        if (!checked && userInput.trim()) {
-          handleCheck();
-        } else if (checked) {
+        e.stopPropagation();
+        if (!checked) {
+          // Enter lần 1: kiểm tra kết quả (nếu đã gõ chữ)
+          const input = document.querySelector('input[data-translation-input]') as HTMLInputElement;
+          if (input && input.value.trim()) {
+            handleCheck();
+          }
+        } else {
+          // Enter lần 2: qua câu tiếp theo
           next();
         }
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [phase, userInput, checked, current, questions.length]);
+  }, [phase, checked, current, questions.length]);
 
   const handleCheck = () => {
     if (!userInput.trim()) return;
@@ -291,12 +297,13 @@ export function Translation({ questionCount = QUESTION_COUNT, onComplete, onServ
             <input
               ref={inputRef}
               type="text"
+              data-translation-input="true"
               value={userInput}
               onChange={(e) => setUserInput(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();
-                  if (userInput.trim()) handleCheck();
+                  e.stopPropagation();
                 }
               }}
               placeholder="Gõ chữ Hán vào đây..."
