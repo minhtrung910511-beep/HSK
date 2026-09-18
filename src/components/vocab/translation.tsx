@@ -34,10 +34,12 @@ function shuffle<T>(arr: T[]): T[] {
 const QUESTION_COUNT = 10;
 const TIME_LIMIT = 30;
 
+// Hệ số 1X (như quiz normal)
 function computeTranslationScore(correct: number, total: number, totalSeconds: number): number {
   const perfectBonus = correct === total ? 200 : 0;
   const raw = Math.max(0, correct * 100 - totalSeconds * 3 + perfectBonus);
-  return Math.floor(raw * 10) / 10;
+  const multiplier = 1; // Hệ số 1X
+  return Math.floor(raw * multiplier * 10) / 10;
 }
 
 function speak(text: string) {
@@ -168,7 +170,7 @@ export function Translation({ questionCount = QUESTION_COUNT, onComplete, onServ
     const points = computeTranslationScore(score, questions.length, totalSeconds);
     onComplete?.(points);
     if (user) {
-      submitScore("matching", points, { time: totalSeconds, correct: score, total: questions.length, mode: "vi-han" }).catch(() => {});
+      submitScore("quiz", points, { time: totalSeconds, correct: score, total: questions.length, difficulty: "translation" }).catch(() => {});
     }
     if (onServerSubmit) {
       onServerSubmit(points, { time: totalSeconds, correct: score, total: questions.length }).catch(() => {});
