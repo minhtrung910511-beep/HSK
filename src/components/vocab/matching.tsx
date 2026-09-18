@@ -23,13 +23,13 @@ interface Cell {
   text: string;
 }
 
-type MatchingMode = "han-vi" | "han-pinyin" | "vi-pinyin" | "blank-han";
+type MatchingMode = "han-vi" | "han-pinyin" | "vi-pinyin" | "blank-han" | "vi-han";
 
 const DEFAULT_PAIR_COUNT = 6;
 const MAX_LIVES = 3;
 
 // Hệ số điểm theo mode:
-// - han-vi, han-pinyin: 1X (bình thường)
+// - han-vi, han-pinyin, vi-han: 1X (bình thường)
 // - vi-pinyin: 0.5X (dễ hơn)
 // - blank-han: 2X (khó hơn)
 function getModeMultiplier(mode: MatchingMode): number {
@@ -92,6 +92,10 @@ export function Matching({ pairCount = DEFAULT_PAIR_COUNT, onComplete, onServerS
       } else if (mode === "vi-pinyin") {
         leftCells.push({ id: `v-${w.id}`, wordId: w.id, side: "vi", text: w.meaning });
         rightCells.push({ id: `p-${w.id}`, wordId: w.id, side: "pinyin", text: w.pinyin });
+      } else if (mode === "vi-han") {
+        // Điền chữ Hán theo nghĩa tiếng Việt
+        leftCells.push({ id: `v-${w.id}`, wordId: w.id, side: "vi", text: w.meaning });
+        rightCells.push({ id: `h-${w.id}`, wordId: w.id, side: "han", text: w.han });
       } else {
         const blank = (w.example || "").replace(w.han, "＿＿＿");
         leftCells.push({ id: `b-${w.id}`, wordId: w.id, side: "blank", text: blank });
@@ -185,6 +189,7 @@ export function Matching({ pairCount = DEFAULT_PAIR_COUNT, onComplete, onServerS
     const modeOptions: { id: MatchingMode; label: string; desc: string; emoji: string }[] = [
       { id: "han-vi", label: "Hán tự ↔ Nghĩa", desc: "Ghép chữ Hán với nghĩa tiếng Việt • 1X điểm", emoji: "🔤" },
       { id: "han-pinyin", label: "Hán tự ↔ Pinyin", desc: "Ghép chữ Hán với phiên âm pinyin • 1X điểm", emoji: "🎵" },
+      { id: "vi-han", label: "Điền Hán tự theo Nghĩa", desc: "Thấy nghĩa tiếng Việt → điền chữ Hán • 1X điểm", emoji: "✍️" },
       { id: "vi-pinyin", label: "Nghĩa ↔ Pinyin", desc: "Ghép nghĩa tiếng Việt với pinyin • 0.5X điểm (dễ)", emoji: "💬" },
       { id: "blank-han", label: "Câu ＿ ↔ Hán tự", desc: "Ghép câu có chỗ trống với Hán tự cần điền • 2X điểm (khó)", emoji: "📝" },
     ];
@@ -338,6 +343,7 @@ export function Matching({ pairCount = DEFAULT_PAIR_COUNT, onComplete, onServerS
       <div className="text-center text-xs text-muted-foreground">
         {mode === "han-vi" && "Nhấp 1 Hán tự + 1 nghĩa tiếng Việt để ghép"}
         {mode === "han-pinyin" && "Nhấp 1 Hán tự + 1 pinyin để ghép"}
+        {mode === "vi-han" && "Nhấp 1 nghĩa tiếng Việt + 1 Hán tự tương ứng để ghép"}
         {mode === "vi-pinyin" && "Nhấp 1 nghĩa tiếng Việt + 1 pinyin để ghép"}
         {mode === "blank-han" && "Nhấp 1 câu có ＿ + 1 Hán tự để điền vào chỗ trống"}
       </div>

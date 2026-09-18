@@ -11,7 +11,7 @@ import { useAuth } from "@/hooks/use-auth";
 type Tab = "diligence" | "quiz" | "matching";
 type Range = "daily" | "weekly" | "monthly" | "all";
 type QuizSub = "all" | "easy" | "normal" | "hard";
-type MatchingSub = "all" | "han-vi" | "han-pinyin" | "vi-pinyin" | "blank-han";
+type MatchingSub = "all" | "han-vi" | "han-pinyin" | "vi-han" | "vi-pinyin" | "blank-han";
 
 interface DiligenceRow {
   rank: number;
@@ -197,6 +197,7 @@ export function Leaderboard() {
                 { id: "all", label: "Tất cả" },
                 { id: "han-vi", label: "🔤 Hán↔Nghĩa (1X)" },
                 { id: "han-pinyin", label: "🎵 Hán↔Pinyin (1X)" },
+                { id: "vi-han", label: "✍️ Nghĩa→Hán (1X)" },
                 { id: "vi-pinyin", label: "💬 Nghĩa↔Pinyin (0.5X)" },
                 { id: "blank-han", label: "📝 Câu＿↔Hán (2X)" },
               ] as { id: MatchingSub; label: string }[]).map(s => (
@@ -218,7 +219,7 @@ export function Leaderboard() {
               description={
                 matchingSub === "all"
                   ? "Top điểm cao nhất mỗi người - Tất cả dạng ghép cặp • Thua = 0 điểm"
-                  : `Top điểm dạng ${matchingSub === "han-vi" ? "Hán↔Nghĩa (1X)" : matchingSub === "han-pinyin" ? "Hán↔Pinyin (1X)" : matchingSub === "vi-pinyin" ? "Nghĩa↔Pinyin (0.5X)" : "Câu＿↔Hán tự (2X)"} • Thua = 0 điểm`
+                  : `Top điểm dạng ${matchingSub === "han-vi" ? "Hán↔Nghĩa (1X)" : matchingSub === "han-pinyin" ? "Hán↔Pinyin (1X)" : matchingSub === "vi-han" ? "Nghĩa→Hán (1X)" : matchingSub === "vi-pinyin" ? "Nghĩa↔Pinyin (0.5X)" : "Câu＿↔Hán tự (2X)"} • Thua = 0 điểm`
               }
               rows={matching}
               currentUserId={user?.id}
