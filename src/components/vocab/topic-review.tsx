@@ -19,7 +19,7 @@ interface TopicReviewProps {
   onComplete?: (points: number) => void;
 }
 
-type QuizMode = "han-to-pinyin" | "han-to-meaning" | "meaning-to-han" | "fill-blank";
+type QuizMode = "han-to-pinyin" | "han-to-meaning" | "meaning-to-han" | "fill-blank" | "translation";
 
 interface Question {
   word: VocabWord;
@@ -105,7 +105,7 @@ export function TopicReview({ topicId, onExit, onServerSubmit, onComplete }: Top
     }
     pool = pool.slice(0, Math.min(QUESTION_COUNT, pool.length));
 
-    const modes: QuizMode[] = ["han-to-pinyin", "han-to-meaning", "meaning-to-han", "fill-blank"];
+    const modes: QuizMode[] = ["han-to-pinyin", "han-to-meaning", "meaning-to-han", "fill-blank", "translation"];
     const qs: Question[] = pool.map(word => {
       const mode = modes[Math.floor(Math.random() * modes.length)];
       // Lọc distractors: loại bỏ từ có đáp án trùng với câu hỏi
@@ -120,7 +120,7 @@ export function TopicReview({ topicId, onExit, onServerSubmit, onComplete }: Top
         if (mode === "han-to-pinyin" && w.pinyin === word.pinyin) return false;
         // Loại bỏ từ có Hán tự bao chứa nhau (substring)
         // vd: "他们" chứa "他" → loại, để chỉ có 1 đáp án đúng
-        if (mode === "fill-blank" || mode === "meaning-to-han") {
+        if (mode === "fill-blank" || mode === "meaning-to-han" || mode === "translation") {
           if (w.han.includes(word.han) || word.han.includes(w.han)) return false;
         }
         return true;
@@ -136,6 +136,10 @@ export function TopicReview({ topicId, onExit, onServerSubmit, onComplete }: Top
       } else if (mode === "han-to-meaning") {
         correct = word.meaning;
         options = shuffle([correct, ...distractors.map(d => d.meaning)]);
+      } else if (mode === "translation") {
+        // Dịch nghĩa: hiện nghĩa tiếng Việt → chọn Hán tự đúng
+        correct = word.han;
+        options = shuffle([correct, ...distractors.map(d => d.han)]);
       } else if (mode === "fill-blank") {
         correct = word.han;
         options = shuffle([correct, ...distractors.map(d => d.han)]);
@@ -285,7 +289,7 @@ export function TopicReview({ topicId, onExit, onServerSubmit, onComplete }: Top
             Ôn tập: {topic.name}
           </h3>
           <p className="text-muted-foreground max-w-md">
-            {QUESTION_COUNT} câu trắc nghiệm • {TIME_LIMIT}s/câu • 4 dạng: Hán→Pinyin, Hán→Nghĩa, Nghĩa→Hán, Điền chỗ trống
+            {QUESTION_COUNT} câu trắc nghiệm • {TIME_LIMIT}s/câu • 5 dạng: Hán→Pinyin, Hán→Nghĩa, Nghĩa→Hán, Dịch nghĩa, Điền chỗ trống
           </p>
           <div className="mt-3 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-100 border border-amber-300 text-amber-800 text-sm">
             <Trophy className="h-4 w-4" />
@@ -367,6 +371,8 @@ export function TopicReview({ topicId, onExit, onServerSubmit, onComplete }: Top
     ? "Chọn nghĩa tiếng Việt"
     : effectiveMode === "meaning-to-han"
     ? "Chọn Hán tự"
+    : effectiveMode === "translation"
+    ? "Chọn Hán tự đúng với nghĩa"
     : "Chọn Hán tự điền vào chỗ trống";
 
   return (
@@ -413,8 +419,9 @@ export function TopicReview({ topicId, onExit, onServerSubmit, onComplete }: Top
               {effectiveMode === "han-to-pinyin" && q.word.han}
               {effectiveMode === "han-to-meaning" && q.word.han}
               {effectiveMode === "meaning-to-han" && q.word.meaning}
+              {effectiveMode === "translation" && q.word.meaning}
             </div>
-            {(effectiveMode === "han-to-pinyin" || effectiveMode === "han-to-meaning") && (
+            {(effectiveMode === "han-to-pinyin" || effectiveMode === "han-to-meaning" || effectiveMode === "translation") && (
               <Button variant="ghost" size="icon" onClick={() => speak(q.word.han)}>
                 <Volume2 className="h-5 w-5" />
               </Button>
