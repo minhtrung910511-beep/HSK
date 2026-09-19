@@ -28,6 +28,7 @@ interface Question {
   mode: QuizMode;
   blankSentence?: string;
   blankPinyin?: string;
+  isTextInput?: boolean; // true = tự gõ chữ Hán, false = trắc nghiệm
 }
 
 const QUESTION_COUNT = 10;
@@ -78,6 +79,10 @@ export function TopicReview({ topicId, onExit, onServerSubmit, onComplete }: Top
   const completedRef = useRef(false);
   const submittedRef = useRef(false);
   const [lbRefresh, setLbRefresh] = useState(0);
+  // State cho dạng tự gõ chữ Hán (translation mode)
+  const [textInput, setTextInput] = useState("");
+  const [textChecked, setTextChecked] = useState(false);
+  const textInputRef = useRef<HTMLInputElement>(null);
 
   // Wrapper exit: reset state trước khi gọi onExit để lần sau mở lại không bị lỗi
   const handleExit = useCallback(() => {
@@ -137,9 +142,9 @@ export function TopicReview({ topicId, onExit, onServerSubmit, onComplete }: Top
         correct = word.meaning;
         options = shuffle([correct, ...distractors.map(d => d.meaning)]);
       } else if (mode === "translation") {
-        // Dịch nghĩa: hiện nghĩa tiếng Việt → chọn Hán tự đúng
+        // Dịch nghĩa: hiện nghĩa tiếng Việt → TỰ GÕ chữ Hán (không trắc nghiệm)
         correct = word.han;
-        options = shuffle([correct, ...distractors.map(d => d.han)]);
+        options = []; // không có options, user tự gõ
       } else if (mode === "fill-blank") {
         correct = word.han;
         options = shuffle([correct, ...distractors.map(d => d.han)]);
@@ -179,7 +184,7 @@ export function TopicReview({ topicId, onExit, onServerSubmit, onComplete }: Top
         } else break;
       }
       options = shuffle(uniqueOptions);
-      return { word, options, correct, mode, blankSentence, blankPinyin };
+      return { word, options, correct, mode, blankSentence, blankPinyin, isTextInput: mode === "translation" };
     });
     setQuestions(qs);
     setCurrent(0);
@@ -249,7 +254,18 @@ export function TopicReview({ topicId, onExit, onServerSubmit, onComplete }: Top
     }
     setCurrent(c => c + 1);
     setSelected(null);
+    setTextInput("");
+    setTextChecked(false);
     setTimeLeft(TIME_LIMIT);
+  };
+
+  // Xử lý kiểm tra dạng tự gõ
+  const handleTextCheck = () => {
+    if (!textInput.trim()) return;
+    setTextChecked(true);
+    if (textInput.trim() === questions[current].correct) {
+      setScore(s => s + 1);
+    }
   };
 
   // Submit lên server khi vào phase result
@@ -372,7 +388,7 @@ export function TopicReview({ topicId, onExit, onServerSubmit, onComplete }: Top
     : effectiveMode === "meaning-to-han"
     ? "Chọn Hán tự"
     : effectiveMode === "translation"
-    ? "Chọn Hán tự đúng với nghĩa"
+    ? "Gõ chữ Hán đúng với nghĩa"
     : "Chọn Hán tự điền vào chỗ trống";
 
   return (
@@ -433,44 +449,116 @@ export function TopicReview({ topicId, onExit, onServerSubmit, onComplete }: Top
         )}
       </Card>
 
-      {/* Options */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {q.options.map(opt => {
-          const isCorrect = opt === q.correct;
-          const isSelected = opt === selected;
-          let cls = "border-2 hover:border-indigo-300 hover:bg-indigo-50 transition-all justify-start text-left";
-          if (selected !== null) {
-            if (isCorrect) cls = "border-2 border-emerald-400 bg-emerald-50 text-emerald-700 justify-start text-left";
-            else if (isSelected) cls = "border-2 border-rose-400 bg-rose-50 text-rose-700 justify-start text-left";
-            else cls = "border-2 border-muted opacity-60 justify-start text-left";
-          }
-          return (
-            <Button
-              key={opt}
-              variant="outline"
-              className={`h-auto py-4 px-4 text-lg ${cls}`}
-              onClick={() => handleSelect(opt)}
-              disabled={selected !== null}
+      {/* Options hoặc Input */}
+      {q.isTextInput ? (
+        // Dạng tự gõ chữ Hán
+        <div className="flex flex-col gap-3">
+          {!textChecked ? (
+            <>
+              <input
+                ref={textInputRef}
+                type="text"
+                value={textInput}
+                onChange={(e) => setTextInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    if (textInput.trim()) handleTextCheck();
+                  }
+                }}
+                placeholder="Gõ chữ Hán vào đây..."
+                className="w-full text-3xl md:text-4xl text-center font-bold py-6 px-4 rounded-2xl border-2 border-indigo-200 bg-white focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 transition-all"
+                autoFocus
+              />
+              <Button
+                size="lg"
+                onClick={handleTextCheck}
+                disabled={!textInput.trim()}
+                className="gap-2 bg-gradient-to-r from-indigo-500 to-violet-500 text-white"
+              >
+                Kiểm tra (Enter)
+              </Button>
+            </>
+          ) : (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex flex-col gap-3"
             >
-              <span className="flex-1">{opt}</span>
-              {selected !== null && isCorrect && <Check className="h-5 w-5" />}
-              {selected !== null && isSelected && !isCorrect && <X className="h-5 w-5" />}
-            </Button>
-          );
-        })}
-      </div>
+              <div className="p-4 rounded-xl bg-white border-2 border-slate-200 text-center">
+                <div className="text-xs text-muted-foreground mb-1">Bạn đã gõ:</div>
+                <div className="text-3xl font-bold text-foreground">
+                  {textInput.trim() || "(trống)"}
+                </div>
+              </div>
+              <div className={`p-4 rounded-xl text-center font-semibold ${
+                textInput.trim() === q.correct
+                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                  : "bg-rose-50 text-rose-700 border border-rose-200"
+              }`}>
+                {textInput.trim() === q.correct ? "✅ Chính xác!" : "❌ Chưa đúng!"}
+                <div className="mt-2 text-lg">
+                  Đáp án đúng: <span className="text-2xl font-bold">{q.correct}</span>
+                  <span className="text-base font-normal italic text-muted-foreground ml-2">{q.word.pinyin}</span>
+                </div>
+                <div className="mt-2 flex items-center justify-center gap-2">
+                  <Button variant="ghost" size="sm" onClick={() => speak(q.word.han)}>
+                    <Volume2 className="h-4 w-4" /> Nghe phát âm
+                  </Button>
+                </div>
+              </div>
+              <Button
+                size="lg"
+                onClick={next}
+                className="gap-2 bg-gradient-to-r from-indigo-500 to-violet-500 text-white"
+              >
+                {current + 1 >= questions.length ? "Xem kết quả" : "Câu tiếp theo (Enter)"}
+              </Button>
+            </motion.div>
+          )}
+        </div>
+      ) : (
+        // Dạng trắc nghiệm
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {q.options.map(opt => {
+              const isCorrect = opt === q.correct;
+              const isSelected = opt === selected;
+              let cls = "border-2 hover:border-indigo-300 hover:bg-indigo-50 transition-all justify-start text-left";
+              if (selected !== null) {
+                if (isCorrect) cls = "border-2 border-emerald-400 bg-emerald-50 text-emerald-700 justify-start text-left";
+                else if (isSelected) cls = "border-2 border-rose-400 bg-rose-50 text-rose-700 justify-start text-left";
+                else cls = "border-2 border-muted opacity-60 justify-start text-left";
+              }
+              return (
+                <Button
+                  key={opt}
+                  variant="outline"
+                  className={`h-auto py-4 px-4 text-lg ${cls}`}
+                  onClick={() => handleSelect(opt)}
+                  disabled={selected !== null}
+                >
+                  <span className="flex-1">{opt}</span>
+                  {selected !== null && isCorrect && <Check className="h-5 w-5" />}
+                  {selected !== null && isSelected && !isCorrect && <X className="h-5 w-5" />}
+                </Button>
+              );
+            })}
+          </div>
 
-      {/* Next */}
-      {selected !== null && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex justify-end"
-        >
-          <Button onClick={next} className="gap-2 bg-gradient-to-r from-indigo-500 to-violet-500 text-white">
-            {current + 1 >= questions.length ? "Xem kết quả" : "Câu tiếp theo"}
-          </Button>
-        </motion.div>
+          {/* Next */}
+          {selected !== null && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex justify-end"
+            >
+              <Button onClick={next} className="gap-2 bg-gradient-to-r from-indigo-500 to-violet-500 text-white">
+                {current + 1 >= questions.length ? "Xem kết quả" : "Câu tiếp theo"}
+              </Button>
+            </motion.div>
+          )}
+        </>
       )}
     </div>
   );
