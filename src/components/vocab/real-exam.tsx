@@ -196,7 +196,7 @@ export function RealExamPage() {
           </div>
         </div>
 
-        {/* Audio player - từng câu riêng cho phần nghe */}
+        {/* Audio player - 4 phần nghe (mỗi phần 5 câu) */}
         {isListeningPart && (
           <Card className="p-3 bg-gradient-to-r from-sky-50 to-cyan-50 border-2 border-sky-200">
             <div className="flex items-center gap-3">
@@ -204,18 +204,20 @@ export function RealExamPage() {
                 {audioPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
               </Button>
               <div className="flex-1">
-                <div className="font-semibold text-sm">🎧 Nghe câu {qNum}</div>
+                <div className="font-semibold text-sm">
+                  🎧 {currentPart.part} (Câu {currentPart.startQ}-{currentPart.endQ})
+                </div>
                 <div className="text-xs text-muted-foreground">
-                  {audioPlaying ? "Đang phát..." : "Bấm play để nghe (hoặc tự động)"}
+                  {audioPlaying ? "Đang phát..." : "Bấm play để nghe phần này"}
                 </div>
               </div>
               <Badge className="bg-sky-100 text-sky-700 border-0">
-                {currentPart.part}
+                {currentPart.sectionLabel}
               </Badge>
               <audio
-                key={`audio-${examCode}-${qNum}`}
+                key={`audio-${examCode}-${currentPart.part}`}
                 ref={audioRef}
-                src={`/exam-audio/${examCode}/q${qNum}.mp3`}
+                src={`/exam-audio/${examCode}/part${Math.ceil(qNum/5)}_q${currentPart.startQ}-${currentPart.endQ}.mp3`}
                 onEnded={() => setAudioPlaying(false)}
                 className="hidden"
               />
