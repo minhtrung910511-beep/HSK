@@ -1,69 +1,80 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { motion } from "framer-motion";
-import { FileText, Volume2, Pause, Play, ChevronLeft, ChevronRight, Trophy, RotateCcw, Check, X } from "lucide-react";
+import { FileText, Volume2, Pause, Play, ChevronLeft, ChevronRight, Trophy, RotateCcw, Check, X, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import { useAuth } from "@/hooks/use-auth";
 
 type ExamCode = "H10901" | "H11005";
-type Phase = "select" | "viewing" | "result";
+type Phase = "select" | "playing" | "result";
 
-const EXAMS: { code: ExamCode; title: string; pages: number }[] = [
-  { code: "H10901", title: "Đề thi HSK1 - H10901", pages: 10 },
-  { code: "H11005", title: "Đề thi HSK1 - H11005", pages: 10 },
+const EXAMS: { code: ExamCode; title: string }[] = [
+  { code: "H10901", title: "Đề thi HSK1 - H10901" },
+  { code: "H11005", title: "Đề thi HSK1 - H11005" },
+];
+
+// Đáp án đúng cho mỗi đề (40 câu)
+const ANSWER_KEYS: Record<ExamCode, Record<number, string>> = {
+  H10901: {
+    1: "√", 2: "×", 3: "√", 4: "×", 5: "√",
+    6: "B", 7: "C", 8: "A", 9: "B", 10: "C",
+    11: "C", 12: "A", 13: "D", 14: "F", 15: "E",
+    16: "A", 17: "C", 18: "B", 19: "A", 20: "C",
+    21: "×", 22: "√", 23: "×", 24: "√", 25: "×",
+    26: "D", 27: "B", 28: "F", 29: "A", 30: "E",
+    31: "D", 32: "F", 33: "A", 34: "E", 35: "C",
+    36: "D", 37: "F", 38: "B", 39: "A", 40: "E",
+  },
+  H11005: {
+    1: "×", 2: "√", 3: "√", 4: "×", 5: "×",
+    6: "C", 7: "A", 8: "B", 9: "C", 10: "A",
+    11: "E", 12: "C", 13: "A", 14: "D", 15: "F",
+    16: "B", 17: "C", 18: "A", 19: "B", 20: "C",
+    21: "√", 22: "×", 23: "√", 24: "×", 25: "√",
+    26: "C", 27: "A", 28: "E", 29: "D", 30: "B",
+    31: "F", 32: "A", 33: "E", 34: "B", 35: "D",
+    36: "E", 37: "A", 38: "F", 39: "C", 40: "B",
+  },
+};
+
+// Cấu trúc câu hỏi - mỗi câu thuộc phần nào
+interface QPart {
+  section: string; // "听力" or "阅读"
+  part: string; // "第一部分" etc
+  startQ: number;
+  endQ: number;
+  options: string[]; // ["√","×"] or ["A","B","C"] or ["A","B","C","D","E","F"]
+}
+
+const QUESTION_PARTS: QPart[] = [
+  { section: "一、听力", part: "第一部分", startQ: 1, endQ: 5, options: ["√", "×"] },
+  { section: "一、听力", part: "第二部分", startQ: 6, endQ: 10, options: ["A", "B", "C"] },
+  { section: "一、听力", part: "第三部分", startQ: 11, endQ: 15, options: ["A", "B", "C", "D", "E", "F"] },
+  { section: "一、听力", part: "第四部分", startQ: 16, endQ: 20, options: ["A", "B", "C"] },
+  { section: "二、阅读", part: "第一部分", startQ: 21, endQ: 25, options: ["√", "×"] },
+  { section: "二、阅读", part: "第二部分", startQ: 26, endQ: 30, options: ["A", "B", "C", "D", "E", "F"] },
+  { section: "二、阅读", part: "第三部分", startQ: 31, endQ: 35, options: ["A", "B", "C", "D", "E", "F"] },
+  { section: "二、阅读", part: "第四部分", startQ: 36, endQ: 40, options: ["A", "B", "C", "D", "E", "F"] },
 ];
 
 export function RealExamPage() {
   const { user, submitScore } = useAuth();
   const [phase, setPhase] = useState<Phase>("select");
   const [examCode, setExamCode] = useState<ExamCode | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [audioPlaying, setAudioPlaying] = useState(false);
+  const [currentQ, setCurrentQ] = useState(0); // 0-39
   const audioRef = useRef<HTMLAudioElement>(null);
-
-  // Answer key for both exams (40 questions each)
-  // Format: { questionNumber: "correct_answer" }
-  // √/× for Q1-5, Q21-25; A/B/C for Q6-10, Q16-20; A-F for Q11-15, Q26-30, Q31-35, Q36-40
-  const ANSWER_KEYS: Record<ExamCode, Record<number, string>> = {
-    H10901: {
-      // Phần nghe -第一部分 (1-5): √ or ×
-      1: "√", 2: "×", 3: "√", 4: "×", 5: "√",
-      // 第二部分 (6-10): A/B/C
-      6: "B", 7: "C", 8: "A", 9: "B", 10: "C",
-      // 第三部分 (11-15): A-F
-      11: "C", 12: "A", 13: "D", 14: "F", 15: "E",
-      // 第四部分 (16-20): A/B/C
-      16: "A", 17: "C", 18: "B", 19: "A", 20: "C",
-      // Phần đọc - 第一部分 (21-25): √ or ×
-      21: "×", 22: "√", 23: "×", 24: "√", 25: "×",
-      // 第二部分 (26-30): A-F
-      26: "D", 27: "B", 28: "F", 29: "A", 30: "E",
-      // 第三部分 (31-35): A-F
-      31: "D", 32: "F", 33: "A", 34: "E", 35: "C",
-      // 第四部分 (36-40): A-F
-      36: "D", 37: "F", 38: "B", 39: "A", 40: "E",
-    },
-    H11005: {
-      1: "×", 2: "√", 3: "√", 4: "×", 5: "×",
-      6: "C", 7: "A", 8: "B", 9: "C", 10: "A",
-      11: "E", 12: "C", 13: "A", 14: "D", 15: "F",
-      16: "B", 17: "C", 18: "A", 19: "B", 20: "C",
-      21: "√", 22: "×", 23: "√", 24: "×", 25: "√",
-      26: "C", 27: "A", 28: "E", 29: "D", 30: "B",
-      31: "F", 32: "A", 33: "E", 34: "B", 35: "D",
-      36: "E", 37: "A", 38: "F", 39: "C", 40: "B",
-    },
-  };
 
   const startExam = (code: ExamCode) => {
     setExamCode(code);
-    setCurrentPage(1);
     setAnswers({});
-    setPhase("viewing");
+    setCurrentQ(0);
+    setPhase("playing");
   };
 
   const toggleAudio = () => {
@@ -77,14 +88,22 @@ export function RealExamPage() {
     }
   };
 
-  const setAnswer = (question: number, answer: string) => {
-    setAnswers(prev => ({ ...prev, [question]: answer }));
+  const setAnswer = (answer: string) => {
+    const qNum = currentQ + 1;
+    setAnswers(prev => ({ ...prev, [qNum]: answer }));
+  };
+
+  const nextQ = () => {
+    if (currentQ < 39) setCurrentQ(c => c + 1);
+  };
+
+  const prevQ = () => {
+    if (currentQ > 0) setCurrentQ(c => c - 1);
   };
 
   const submitExam = () => {
-    if (!examCode) return;
     setPhase("result");
-    if (user && submitScore) {
+    if (user && submitScore && examCode) {
       const correct = calculateScore();
       submitScore("flashcard_review", correct * 10, { exam: true, examCode, correct, total: 40 }).catch(() => {});
     }
@@ -101,6 +120,11 @@ export function RealExamPage() {
   };
 
   const answeredCount = Object.keys(answers).length;
+  const qNum = currentQ + 1;
+  const currentPart = QUESTION_PARTS.find(p => qNum >= p.startQ && qNum <= p.endQ) || QUESTION_PARTS[0];
+  const isListeningPart = currentPart.section.includes("听力");
+  const userAnswer = answers[qNum];
+  const correctAnswer = examCode ? ANSWER_KEYS[examCode][qNum] : "";
 
   // ===== SELECT EXAM =====
   if (phase === "select") {
@@ -117,22 +141,13 @@ export function RealExamPage() {
             </div>
           </div>
           <div className="p-3 rounded-xl bg-white/70 border border-rose-200">
-            <div className="font-semibold text-sm mb-1">📋 Cấu trúc đề thi (40 câu)</div>
-            <ul className="text-xs text-muted-foreground space-y-1">
-              <li>一、听力 (Nghe hiểu) - 20 câu - Có audio MP3</li>
-              <li>　• 第一部分 (1-5): Nghe → đánh dấu √/×</li>
-              <li>　• 第二部分 (6-10): Nghe → chọn tranh A/B/C</li>
-              <li>　• 第三部分 (11-15): Nghe → chọn tranh A-F</li>
-              <li>　• 第四部分 (16-20): Nghe → chọn đáp án A/B/C</li>
-              <li>二、阅读 (Đọc hiểu) - 20 câu</li>
-              <li>　• 第一部分 (21-25): Hình + từ → đánh dấu √/×</li>
-              <li>　• 第二部分 (26-30): Câu → nối với hình A-F</li>
-              <li>　• 第三部分 (31-35): Câu hỏi → nối đáp án A-F</li>
-              <li>　• 第四部分 (36-40): Điền từ vào chỗ trống A-F</li>
-            </ul>
+            <div className="font-semibold text-sm mb-2">📋 Cấu trúc (40 câu)</div>
+            <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+              <div>🎧 <b>Phần nghe (20 câu)</b></div>
+              <div>📖 <b>Phần đọc (20 câu)</b></div>
+            </div>
           </div>
         </Card>
-
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {EXAMS.map((exam, i) => (
             <motion.button
@@ -145,7 +160,7 @@ export function RealExamPage() {
             >
               <div className="text-4xl mb-2">📝</div>
               <div className="font-bold text-lg">{exam.title}</div>
-              <div className="text-sm opacity-80 mt-1">10 trang • 40 câu • Có audio MP3</div>
+              <div className="text-sm opacity-80 mt-1">40 câu • Có audio MP3</div>
               <div className="mt-3 inline-flex items-center gap-1 px-3 py-1 rounded-full bg-white/20 text-xs">
                 <Volume2 className="h-3 w-3" /> Có phần nghe audio
               </div>
@@ -156,163 +171,138 @@ export function RealExamPage() {
     );
   }
 
-  // ===== VIEWING EXAM =====
-  if (phase === "viewing" && examCode) {
-    const totalPages = 10;
+  // ===== PLAYING =====
+  if (phase === "playing" && examCode) {
     return (
       <div className="flex flex-col gap-4">
         {/* Header */}
         <div className="flex items-center justify-between gap-4 flex-wrap">
-          <button
-            onClick={() => setPhase("select")}
-            className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1"
-          >
-            <ChevronLeft className="h-4 w-4" /> Chọn đề khác
+          <button onClick={() => setPhase("select")} className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1">
+            <ChevronLeft className="h-4 w-4" /> Thoát
           </button>
           <Badge variant="secondary">📝 {examCode}</Badge>
           <div className="flex items-center gap-2">
             <Badge className="gap-1 bg-emerald-100 text-emerald-700 border-0">
-              {answeredCount}/40 câu
+              {answeredCount}/40
             </Badge>
-            <Button
-              onClick={submitExam}
-              className="gap-2 bg-gradient-to-r from-rose-500 to-violet-500 text-white"
-            >
+            <Button onClick={submitExam} className="gap-2 bg-gradient-to-r from-rose-500 to-violet-500 text-white">
               <Trophy className="h-4 w-4" /> Nộp bài
             </Button>
           </div>
         </div>
 
-        {/* Audio player (chỉ hiện ở trang nghe) */}
-        {currentPage >= 2 && currentPage <= 6 && (
+        {/* Audio player - chỉ phần nghe */}
+        {isListeningPart && (
           <Card className="p-4 bg-gradient-to-r from-sky-50 to-cyan-50 border-2 border-sky-200">
             <div className="flex items-center gap-3">
-              <Button
-                size="icon"
-                onClick={toggleAudio}
-                className="bg-gradient-to-r from-sky-500 to-cyan-500 text-white rounded-full h-12 w-12"
-              >
+              <Button size="icon" onClick={toggleAudio} className="bg-gradient-to-r from-sky-500 to-cyan-500 text-white rounded-full h-12 w-12">
                 {audioPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
               </Button>
               <div className="flex-1">
                 <div className="font-semibold text-sm">🎧 Phần nghe - {examCode}</div>
-                <div className="text-xs text-muted-foreground">Bấm play để nghe audio, làm bài cùng lúc</div>
+                <div className="text-xs text-muted-foreground">Bấm play để nghe audio</div>
               </div>
-              <audio
-                ref={audioRef}
-                src={`/exam-audio/${examCode}.mp3`}
-                onEnded={() => setAudioPlaying(false)}
-                className="hidden"
-              />
+              <audio ref={audioRef} src={`/exam-audio/${examCode}.mp3`} onEnded={() => setAudioPlaying(false)} className="hidden" />
             </div>
           </Card>
         )}
 
-        {/* Page navigation */}
-        <div className="flex items-center justify-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-            disabled={currentPage === 1}
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <span className="text-sm font-medium px-3">
-            Trang {currentPage} / {totalPages}
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-            disabled={currentPage === totalPages}
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
+        {/* Progress bar */}
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs text-muted-foreground">{currentPart.section} • {currentPart.part}</span>
+            <span className="text-xs font-medium">Câu {qNum}/40</span>
+          </div>
+          <Progress value={(qNum / 40) * 100} className="h-2" />
         </div>
 
-        {/* Exam page image */}
-        <Card className="p-2 overflow-hidden">
-          <img
-            src={`/exam-images/${examCode}/full_page_${currentPage}.png`}
-            alt={`${examCode} page ${currentPage}`}
-            className="w-full h-auto rounded-lg"
-          />
+        {/* Question card */}
+        <Card className="p-6 md:p-8 bg-gradient-to-br from-violet-50 to-fuchsia-50 border-2 border-violet-100">
+          {/* Section + Part info */}
+          <div className="flex items-center gap-2 mb-4">
+            <Badge className="bg-violet-100 text-violet-700 border-0">{currentPart.section}</Badge>
+            <Badge variant="outline">{currentPart.part}</Badge>
+            <Badge variant="secondary">Câu {currentPart.startQ}-{currentPart.endQ}</Badge>
+          </div>
+
+          {/* Question number + image */}
+          <div className="text-center mb-6">
+            <div className="text-xs text-muted-foreground mb-2">Câu {qNum}</div>
+            <div className="text-5xl md:text-6xl font-bold text-foreground">
+              {qNum}
+            </div>
+          </div>
+
+          {/* Exam page image for this question */}
+          <div className="mb-6">
+            <img
+              src={`/exam-images/${examCode}/full_page_${Math.min(Math.ceil(qNum / 5) + 1, 10)}.png`}
+              alt={`${examCode} page ${Math.ceil(qNum / 5) + 1}`}
+              className="w-full h-auto rounded-lg border border-slate-200"
+            />
+          </div>
+
+          {/* Answer options */}
+          <div className="flex flex-col gap-2">
+            <div className="text-xs text-muted-foreground text-center mb-2">
+              {currentPart.options.length === 2
+                ? "Chọn √ (đúng) hoặc × (sai)"
+                : `Chọn đáp án ${currentPart.options.join(", ")}`
+              }
+            </div>
+            <div className={`grid ${currentPart.options.length === 2 ? "grid-cols-2" : currentPart.options.length === 3 ? "grid-cols-3" : "grid-cols-3 md:grid-cols-6"} gap-2`}>
+              {currentPart.options.map(opt => (
+                <button
+                  key={opt}
+                  onClick={() => setAnswer(opt)}
+                  className={`py-4 rounded-xl text-xl font-bold transition-all border-2 ${
+                    userAnswer === opt
+                      ? "bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white border-violet-600 shadow-lg scale-105"
+                      : "bg-white border-slate-200 hover:border-violet-300 hover:bg-violet-50"
+                  }`}
+                >
+                  {opt}
+                </button>
+              ))}
+            </div>
+          </div>
         </Card>
 
-        {/* Answer sheet - hiện ở trang cuối */}
-        {currentPage === totalPages && (
-          <Card className="p-4 md:p-6 bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-200">
-            <h3 className="font-bold text-lg mb-3">📝 Phiếu trả lời</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {Array.from({ length: 40 }, (_, i) => i + 1).map(qNum => {
-                // Determine answer options based on question number
-                let options: string[] = [];
-                if (qNum <= 5 || (qNum >= 21 && qNum <= 25)) {
-                  options = ["√", "×"];
-                } else if ((qNum >= 6 && qNum <= 10) || (qNum >= 16 && qNum <= 20)) {
-                  options = ["A", "B", "C"];
-                } else {
-                  options = ["A", "B", "C", "D", "E", "F"];
-                }
-                return (
-                  <div key={qNum} className="flex items-center gap-1">
-                    <span className="text-xs font-medium w-6">{qNum}.</span>
-                    <div className="flex gap-1 flex-wrap">
-                      {options.map(opt => (
-                        <button
-                          key={opt}
-                          onClick={() => setAnswer(qNum, opt)}
-                          className={`px-2 py-1 rounded text-xs font-medium transition-all ${
-                            answers[qNum] === opt
-                              ? "bg-violet-500 text-white shadow"
-                              : "bg-white border border-slate-200 hover:border-violet-300"
-                          }`}
-                        >
-                          {opt}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            <div className="mt-4 flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">
-                Đã trả lời: {answeredCount}/40
-              </span>
-              <Button
-                onClick={submitExam}
-                className="gap-2 bg-gradient-to-r from-rose-500 to-violet-500 text-white"
-              >
-                <Trophy className="h-4 w-4" /> Nộp bài
-              </Button>
-            </div>
-          </Card>
-        )}
-
-        {/* Page navigation (bottom) */}
-        <div className="flex items-center justify-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-            disabled={currentPage === 1}
-          >
-            <ChevronLeft className="h-4 w-4" /> Trang trước
+        {/* Navigation */}
+        <div className="flex items-center justify-between gap-4">
+          <Button variant="outline" onClick={prevQ} disabled={currentQ === 0} className="gap-2">
+            <ChevronLeft className="h-4 w-4" /> Câu trước
           </Button>
-          <span className="text-sm font-medium px-3">
-            {currentPage} / {totalPages}
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-            disabled={currentPage === totalPages}
-          >
-            Trang sau <ChevronRight className="h-4 w-4" />
+          <div className="flex gap-1 flex-wrap justify-center max-w-md">
+            {Array.from({ length: 40 }, (_, i) => i + 1).map(num => (
+              <button
+                key={num}
+                onClick={() => setCurrentQ(num - 1)}
+                className={`w-7 h-7 rounded text-xs font-medium transition-all ${
+                  num === qNum
+                    ? "bg-violet-500 text-white shadow"
+                    : answers[num]
+                    ? "bg-emerald-100 text-emerald-700 border border-emerald-300"
+                    : "bg-white border border-slate-200 text-slate-400 hover:border-violet-300"
+                }`}
+              >
+                {num}
+              </button>
+            ))}
+          </div>
+          <Button onClick={nextQ} disabled={currentQ === 39} className="gap-2 bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white">
+            Câu sau <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
+
+        {/* Submit button */}
+        {answeredCount >= 30 && (
+          <div className="flex justify-center">
+            <Button onClick={submitExam} size="lg" className="gap-2 bg-gradient-to-r from-rose-500 to-violet-500 text-white">
+              <Trophy className="h-5 w-5" /> Nộp bài ({answeredCount}/40)
+            </Button>
+          </div>
+        )}
       </div>
     );
   }
@@ -338,37 +328,50 @@ export function RealExamPage() {
         </div>
         <Badge variant="secondary" className="text-base px-4 py-1">{pct}% chính xác • {points} điểm</Badge>
 
-        {/* Chi tiết đáp án */}
-        <div className="w-full p-4 rounded-2xl bg-white/70 border border-emerald-200">
+        {/* Chi tiết từng câu */}
+        <div className="w-full">
           <div className="font-semibold mb-3 text-sm">📋 Chi tiết đáp án</div>
-          <div className="grid grid-cols-4 md:grid-cols-8 gap-2">
-            {Array.from({ length: 40 }, (_, i) => i + 1).map(qNum => {
-              const userAnswer = answers[qNum] || "-";
-              const correctAnswer = ANSWER_KEYS[examCode][qNum];
-              const isCorrect = userAnswer === correctAnswer;
-              const isUnanswered = !answers[qNum];
-              return (
-                <div
-                  key={qNum}
-                  className={`p-2 rounded-lg text-center text-xs ${
-                    isUnanswered
-                      ? "bg-slate-100 text-slate-400"
-                      : isCorrect
-                      ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                      : "bg-rose-50 text-rose-700 border border-rose-200"
-                  }`}
-                >
-                  <div className="font-bold">{qNum}</div>
-                  <div className="mt-1">
-                    {isUnanswered ? "-" : userAnswer}
-                  </div>
-                  {!isCorrect && !isUnanswered && (
-                    <div className="text-[10px] text-muted-foreground mt-0.5">→ {correctAnswer}</div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+          {QUESTION_PARTS.map((part, pi) => (
+            <div key={pi} className="mb-4">
+              <div className="text-xs font-medium text-muted-foreground mb-2">
+                {part.section} • {part.part} (Câu {part.startQ}-{part.endQ})
+              </div>
+              <div className="grid grid-cols-5 md:grid-cols-10 gap-1.5">
+                {Array.from({ length: part.endQ - part.startQ + 1 }, (_, i) => part.startQ + i).map(qNum => {
+                  const userAns = answers[qNum] || "-";
+                  const correctAns = ANSWER_KEYS[examCode][qNum];
+                  const isCorrect = userAns === correctAns;
+                  const isUnanswered = !answers[qNum];
+                  return (
+                    <div
+                      key={qNum}
+                      className={`p-2 rounded-lg text-center text-xs ${
+                        isUnanswered
+                          ? "bg-slate-100 text-slate-400"
+                          : isCorrect
+                          ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                          : "bg-rose-50 text-rose-700 border border-rose-200"
+                      }`}
+                    >
+                      <div className="font-bold">{qNum}</div>
+                      <div className="mt-0.5 flex items-center justify-center gap-0.5">
+                        {isUnanswered ? (
+                          <span>-</span>
+                        ) : isCorrect ? (
+                          <Check className="h-3 w-3" />
+                        ) : (
+                          <X className="h-3 w-3" />
+                        )}
+                      </div>
+                      <div className="text-[10px] mt-0.5 text-muted-foreground">
+                        {userAns} {isCorrect ? "" : `→ ${correctAns}`}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </div>
 
         <div className="w-full p-4 rounded-2xl bg-white/70 border border-emerald-200">
