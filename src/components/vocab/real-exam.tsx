@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 import { FileText, Volume2, Pause, Play, ChevronLeft, ChevronRight, Trophy, RotateCcw, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -89,6 +89,21 @@ export function RealExamPage() {
       setAudioPlaying(true);
     }
   };
+
+  // Auto-play audio when switching to a listening question
+  useEffect(() => {
+    if (phase === "playing" && examCode && isListeningPart && audioRef.current) {
+      audioRef.current.pause();
+      setAudioPlaying(false);
+      // Small delay then auto-play
+      const timer = setTimeout(() => {
+        if (audioRef.current) {
+          audioRef.current.play().then(() => setAudioPlaying(true)).catch(() => {});
+        }
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [currentQ, phase, examCode]);
 
   const setAnswer = (answer: string) => {
     const qNum = currentQ + 1;
@@ -181,7 +196,7 @@ export function RealExamPage() {
           </div>
         </div>
 
-        {/* Audio player - chỉ phần nghe */}
+        {/* Audio player - từng câu riêng cho phần nghe */}
         {isListeningPart && (
           <Card className="p-3 bg-gradient-to-r from-sky-50 to-cyan-50 border-2 border-sky-200">
             <div className="flex items-center gap-3">
@@ -189,10 +204,21 @@ export function RealExamPage() {
                 {audioPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
               </Button>
               <div className="flex-1">
-                <div className="font-semibold text-sm">🎧 Phần nghe</div>
-                <div className="text-xs text-muted-foreground">Bấm play để nghe</div>
+                <div className="font-semibold text-sm">🎧 Nghe câu {qNum}</div>
+                <div className="text-xs text-muted-foreground">
+                  {audioPlaying ? "Đang phát..." : "Bấm play để nghe (hoặc tự động)"}
+                </div>
               </div>
-              <audio ref={audioRef} src={`/exam-audio/${examCode}.mp3`} onEnded={() => setAudioPlaying(false)} className="hidden" />
+              <Badge className="bg-sky-100 text-sky-700 border-0">
+                {currentPart.part}
+              </Badge>
+              <audio
+                key={`audio-${examCode}-${qNum}`}
+                ref={audioRef}
+                src={`/exam-audio/${examCode}/q${qNum}.mp3`}
+                onEnded={() => setAudioPlaying(false)}
+                className="hidden"
+              />
             </div>
           </Card>
         )}
