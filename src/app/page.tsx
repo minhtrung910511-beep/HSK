@@ -12,6 +12,7 @@ import { Quiz } from "@/components/vocab/quiz";
 import { Matching } from "@/components/vocab/matching";
 import { Translation } from "@/components/vocab/translation";
 import { ExamPage } from "@/components/vocab/exam-page";
+import { RealExamPage } from "@/components/vocab/real-exam";
 import { AuthModal } from "@/components/vocab/auth-modal";
 import { EditProfileModal } from "@/components/vocab/edit-profile-modal";
 import { Leaderboard } from "@/components/vocab/leaderboard";
@@ -295,7 +296,7 @@ export default function HomePage() {
             transition={{ duration: 0.3 }}
             className="max-w-4xl mx-auto"
           >
-            <ExamPage />
+            <RealExamPage />
           </motion.div>
         ) : tab === "leaderboard" ? (
           <motion.div
