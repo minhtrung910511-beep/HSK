@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { Home, Layers, HelpCircle, Shuffle, GraduationCap, Trophy, LogIn, LogOut, User as UserIcon, Pencil, ArrowLeft } from "lucide-react";
+import { Home, Layers, HelpCircle, Shuffle, GraduationCap, Trophy, LogIn, LogOut, User as UserIcon, Pencil, ArrowLeft, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +11,7 @@ import { Flashcard } from "@/components/vocab/flashcard";
 import { Quiz } from "@/components/vocab/quiz";
 import { Matching } from "@/components/vocab/matching";
 import { Translation } from "@/components/vocab/translation";
+import { ExamPage } from "@/components/vocab/exam-page";
 import { AuthModal } from "@/components/vocab/auth-modal";
 import { EditProfileModal } from "@/components/vocab/edit-profile-modal";
 import { Leaderboard } from "@/components/vocab/leaderboard";
@@ -22,7 +23,7 @@ import { VOCAB_HSK2 } from "@/lib/vocab-data-hsk2";
 import { VocabContext } from "@/lib/vocab-context";
 import { getDueCards } from "@/lib/srs";
 
-type Tab = "home" | "flashcard" | "quiz" | "matching" | "leaderboard";
+type Tab = "home" | "flashcard" | "quiz" | "matching" | "exam" | "leaderboard";
 type FlashcardScope = "all" | "due" | TopicId;
 type Level = "hsk1" | "hsk2";
 
@@ -63,6 +64,7 @@ export default function HomePage() {
     { id: "flashcard",   label: "Flashcard",   icon: <Layers className="h-5 w-5" /> },
     { id: "quiz",        label: "Quiz",        icon: <HelpCircle className="h-5 w-5" /> },
     { id: "matching",    label: "Dịch nghĩa",  icon: <Shuffle className="h-5 w-5" /> },
+    { id: "exam",         label: "Đề thi HSK1", icon: <FileText className="h-5 w-5" /> },
     { id: "leaderboard", label: "Xếp hạng",    icon: <Trophy className="h-5 w-5" /> },
   ];
 
@@ -285,6 +287,15 @@ export default function HomePage() {
                 if (user) await submitScore("matching", score, detail);
               }}
             />
+          </motion.div>
+        ) : tab === "exam" ? (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+            className="max-w-4xl mx-auto"
+          >
+            <ExamPage />
           </motion.div>
         ) : tab === "leaderboard" ? (
           <motion.div
